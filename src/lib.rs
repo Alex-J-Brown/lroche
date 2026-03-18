@@ -13,7 +13,7 @@ mod constants;
 mod binary_model;
 
 #[pymodule]
-fn binarymodel(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn lroche(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<binary_model::BinaryModel>()?;
     Ok(())
 }
