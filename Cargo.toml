@@ -1,0 +1,13 @@
+[package]
+name = "lroche"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "lroche"
+crate-type = ["cdylib"]
+
+[dependencies]
+numpy = "0.28.0"
+pyo3 = { version = "0.28.2", features = ["extension-module"] }
+rayon = "1.10"
