@@ -10,6 +10,7 @@ mod set_disc_continuum;
 mod set_bright_spot_grid;
 mod comp_light;
 mod constants;
+mod comp_gravity;
 mod binary_model;
 
 #[pymodule]
