@@ -1516,7 +1516,7 @@ pub fn planck(wave: f64, temp: f64) -> f64 {
 
     let exponent: f64 = fac2/(wave*temp);
     if exponent > 40.0 {
-        fac1*-exponent.exp()/(wave*wave*wave)
+        fac1*((-exponent).exp())/(wave*wave*wave)
     } else {
         fac1/exponent.exp_m1()/(wave*wave*wave)
     }
