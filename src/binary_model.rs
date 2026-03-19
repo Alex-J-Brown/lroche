@@ -2,17 +2,40 @@ use std::collections::HashMap;
 use std::f64::consts::TAU;
 use rayon::prelude::*;
 use pyo3::prelude::*;
-use numpy::{PyReadonlyArray1, PyReadwriteArray1};
+use numpy::{PyReadonlyArray1, PyReadwriteArray1, IntoPyArray, PyArray1};
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::constants::{C, DAY};
-use crate::roche::{Ginterp, Star, planck, xl12};
+use crate::roche::{self, Ginterp, Star, planck, xl12};
 use crate::model::{Entry, Etype, LDC, Model, Point};
 use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
 use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
 use crate::set_bright_spot_grid::set_bright_spot_grid;
 use crate::set_star_continuum::set_star_continuum;
 use crate::set_star_grid::{disc_eclipse, set_star_grid};
+
+
+#[pyclass]
+pub struct LightCurve {
+    #[pyo3(get)]
+    pub star1: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub star2: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub disc: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub disc_edge: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub bright_spot: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub total: Py<PyArray1<f64>>,
+
+}
 
 #[pyclass]
 pub struct BinaryModel {
@@ -292,20 +315,22 @@ impl BinaryModel {
     }
 
 
+    pub fn x_l1(&self, q: Bound<'_, PyFloat>) -> PyResult<f64> {
+        let xl1 = roche::xl1(q.extract::<f64>().unwrap());
+        Ok(xl1)
+    }
+
+
     pub fn compute_light_curve(
         &self,
+        py: Python,
         time: PyReadonlyArray1<f64>,
         t_exp: PyReadonlyArray1<f64>,
         flux: PyReadonlyArray1<f64>,
         flux_err: PyReadonlyArray1<f64>,
         weight: PyReadonlyArray1<f64>,
         n_div: PyReadonlyArray1<f64>,
-        mut star1: PyReadwriteArray1<f64>,
-        mut star2: PyReadwriteArray1<f64>,
-        mut disc: PyReadwriteArray1<f64>,
-        mut disc_edge: PyReadwriteArray1<f64>,
-        mut bright_spot: PyReadwriteArray1<f64>,
-    ) -> PyResult<()> {
+    ) -> PyResult<LightCurve> {
 
 
         let time: &[f64] = time.as_slice()?;
@@ -315,11 +340,14 @@ impl BinaryModel {
         let weight: &[f64] = weight.as_slice()?;
         let n_div: &[f64] = n_div.as_slice()?;
 
-        let star1: &mut [f64] = star1.as_slice_mut()?;
-        let star2: &mut[f64] = star2.as_slice_mut()?;
-        let disc: &mut[f64] = disc.as_slice_mut()?;
-        let disc_edge: &mut[f64] = disc_edge.as_slice_mut()?;
-        let bright_spot: &mut[f64] = bright_spot.as_slice_mut()?;
+        let n: usize = time.len();
+
+        let mut star1 = vec![0.0; n];
+        let mut star2 = vec![0.0; n];
+        let mut disc = vec![0.0; n];
+        let mut disc_edge = vec![0.0; n];
+        let mut bright_spot = vec![0.0; n];
+        let mut total = vec![0.0; n];
 
         let ldc1: LDC = self.model.get_ldc1();
         let ldc2: LDC = self.model.get_ldc2();
@@ -376,7 +404,19 @@ impl BinaryModel {
             *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
 
-        Ok(())
+        
+        for i in 0..star1.len() {
+            total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
+        }
+
+        Ok(LightCurve {
+            star1: star1.into_pyarray(py).unbind(),
+            star2: star2.into_pyarray(py).unbind(),
+            disc: disc.into_pyarray(py).unbind(),
+            disc_edge: disc_edge.into_pyarray(py).unbind(),
+            bright_spot: bright_spot.into_pyarray(py).unbind(),
+            total: total.into_pyarray(py).unbind()
+        })
 
     }
 }
