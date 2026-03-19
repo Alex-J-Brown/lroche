@@ -19,22 +19,18 @@ load in your data in python and then convert each column to a contiguous array.
     weight = np.ascontiguousarray(weight)
     n_div = np.ascontiguousarray(n_div)
 
-then create empty arrays for rust to fill
+
+Then calculate the model
 
 .. code-block:: python
 
-    model_star1 = np.ascontiguousarray(np.empty_like(time))
-    model_star2 = np.ascontiguousarray(np.empty_like(time))
-    model_disc = np.ascontiguousarray(np.empty_like(time))
-    model_disc_edge = np.ascontiguousarray(np.empty_like(time))
-    model_bright_spot = np.ascontiguousarray(np.empty_like(time))
-
-And calculate the model
-
-.. code-block:: python
-
-    model.compute_light_curve(time, exp, flux, flux_err, weight, n_div, model_star1, model_star2, model_disc, model_disc_edge, model_bright_spot)
+    lc = model.compute_light_curve(time, exp, flux, flux_err, weight, n_div)
 
     fig, ax = plt.subplots
-    ax.plot(time, model_flux1+model_flux2+model_disc+model_disc_edge+model_bright_spot)
+    ax.plot(time, lc.star1)
+    ax.plot(time, lc.star2)
+    ax.plot(time, lc.disc)
+    ax.plot(time, lc.disc_edge)
+    ax.plot(time, lc.bright_spot)
+    ax.plot(time, lc.total)
     plt.show()
