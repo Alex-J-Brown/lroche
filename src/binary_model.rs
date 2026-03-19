@@ -2,8 +2,9 @@ use std::collections::HashMap;
 use std::f64::consts::TAU;
 use rayon::prelude::*;
 use pyo3::prelude::*;
-use numpy::{PyReadonlyArray1, PyReadwriteArray1, IntoPyArray, PyArray1};
+use numpy::{PyReadonlyArray1, IntoPyArray, PyArray1};
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
+use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::constants::{C, DAY};
 use crate::roche::{self, Ginterp, Star, planck, xl12};
@@ -34,6 +35,12 @@ pub struct LightCurve {
 
     #[pyo3(get)]
     pub total: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub logg1: Py<PyFloat>,
+
+    #[pyo3(get)]
+    pub logg2: Py<PyFloat>,
 
 }
 
@@ -361,12 +368,7 @@ impl BinaryModel {
             *out = self.compute_star1_flux(phase, &ldc1, expose, n_div[i] as i32);
         });
 
-        // let scale = rescale(flux, flux_err, weight, star1);
-        // for val in star1 {
-        //     *val *= scale;
-
-        // }
-
+        
         star2
         .par_iter_mut()
         .enumerate()
@@ -375,8 +377,8 @@ impl BinaryModel {
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
         });
-
-
+        
+        
         disc
         .par_iter_mut()
         .enumerate()
@@ -385,7 +387,7 @@ impl BinaryModel {
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_disc_flux(phase, expose, n_div[i] as i32);
         });
-
+        
         disc_edge
         .par_iter_mut()
         .enumerate()
@@ -403,19 +405,29 @@ impl BinaryModel {
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
-
+        
         
         for i in 0..star1.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
 
+        // let scale = rescale(flux, flux_err, weight, &total);
+        // for val in s {
+        //     *val *= scale;
+        // }
+
+        let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid);
+        let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid);
+        
         Ok(LightCurve {
             star1: star1.into_pyarray(py).unbind(),
             star2: star2.into_pyarray(py).unbind(),
             disc: disc.into_pyarray(py).unbind(),
             disc_edge: disc_edge.into_pyarray(py).unbind(),
             bright_spot: bright_spot.into_pyarray(py).unbind(),
-            total: total.into_pyarray(py).unbind()
+            total: total.into_pyarray(py).unbind(),
+            logg1: logg1.into_pyobject(py).unwrap().unbind(),
+            logg2: logg2.into_pyobject(py).unwrap().unbind()
         })
 
     }
@@ -424,52 +436,32 @@ impl BinaryModel {
 
 impl BinaryModel {
     fn compute_star1_flux(&self, phase: f64, ldc1: &LDC, expose: f64, n_div: i32) -> f64 {
-
-        let flux: f64;
-
-        // flux = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
-        flux = comp_star1(self.model.iangle.value, ldc1, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
-
-        flux
+        let star1_flux: f64;
+        star1_flux = comp_star1(self.model.iangle.value, ldc1, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
+        star1_flux
     }
 
     fn compute_star2_flux(&self, phase: f64, ldc2: &LDC, expose: f64, n_div: i32) -> f64 {
-
         let star2_flux: f64;
-
-        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
         star2_flux = comp_star2(self.model.iangle.value, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
-
         star2_flux
     }
 
     fn compute_disc_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
-
         let disc_flux: f64;
-
-        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
         disc_flux = comp_disc(self.model.iangle.value, self.model.lin_limb_disc.value, self.model.quad_limb_disc.value, phase, expose, n_div, &self.disc_grid);
-
         disc_flux
     }
 
     fn compute_disc_edge_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
-
         let disc_edge_flux: f64;
-
-        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
         disc_edge_flux = comp_disc_edge(self.model.iangle.value, self.model.lin_limb_disc.value, self.model.quad_limb_disc.value, phase, expose, n_div, &self.disc_edge_grid);
-
         disc_edge_flux
     }
 
     fn compute_bright_spot_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
-
         let bright_spot_flux: f64;
-
-        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
         bright_spot_flux = comp_bright_spot(self.model.iangle.value, phase, expose, n_div, &self.bright_spot_grid);
-
         bright_spot_flux
     }
 
@@ -504,16 +496,16 @@ pub fn map_from_pydict(dict: Bound<'_, PyDict>) -> PyResult<HashMap<String, Entr
 }
 
 
-// pub fn rescale(flux: &[f64], flux_err: &[f64], weight: &[f64], model_flux: &mut [f64]) -> f64 {
-//     let mut sdy: f64 = 0.0;
-//     let mut syy: f64 = 0.0;
-//     for i in 0..flux.len() {
-//         if weight[i] > 0.0 {
-//             let wgt: f64 = weight[i] / (flux_err[i]*flux_err[i]);
-//             sdy += wgt*flux[i]*model_flux[i];
-//             syy += wgt*model_flux[i]*model_flux[i];
-//         }
-//     }
-//     let scale: f64 = sdy/syy;
-//     scale
-// }
+pub fn rescale(flux: &[f64], flux_err: &[f64], weight: &[f64], model_flux: &[f64]) -> f64 {
+    let mut sdy: f64 = 0.0;
+    let mut syy: f64 = 0.0;
+    for i in 0..flux.len() {
+        if weight[i] > 0.0 {
+            let wgt: f64 = weight[i] / (flux_err[i]*flux_err[i]);
+            sdy += wgt*flux[i]*model_flux[i];
+            syy += wgt*model_flux[i]*model_flux[i];
+        }
+    }
+    let scale: f64 = sdy/syy;
+    scale
+}
