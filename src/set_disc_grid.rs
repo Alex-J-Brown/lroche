@@ -94,7 +94,9 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
         nface += ntheta;
     }
 
+
     let mut disc_grid: Vec<Point> = Vec::with_capacity(nface as usize);
+    disc_grid.resize(nface, Point::default());
 
     let mut posn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let mut dirn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
@@ -108,6 +110,7 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
     let mut sinp: f64;
     let mut cosp: f64;
 
+    nface = 0;
     for i in 0..model.nrad {
         rad = rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64;
         ntheta = (TAU*rad/drrad).ceil() as usize;
@@ -138,12 +141,14 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
                 eclipses.clear();
             }
             if model.eclipse1 {
-                eclipses = set_star_grid::star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary)
+                set_star_grid::star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses)
             }
             if model.eclipse2 {
-                eclipses = set_star_grid::star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary)
+                set_star_grid::star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses)
             }
-            disc_grid[nface] = Point::new(posn, dirn, area, 1., eclipses)
+
+            disc_grid[nface] = Point::new(posn, dirn, area, 1., eclipses);
+            nface += 1;
         }
     }
     disc_grid
@@ -171,7 +176,7 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
 // Roche lobes.
 //
 
-pub fn set_disc_edge(model: Model, outer: bool, visual: bool) -> Vec<Point> {
+pub fn set_disc_edge_grid(model: &Model, outer: bool, visual: bool) -> Vec<Point> {
 
     const EFAC: f64 = 1.0000001;
 
@@ -236,6 +241,7 @@ pub fn set_disc_edge(model: Model, outer: bool, visual: bool) -> Vec<Point> {
     };
 
     let mut edge_grid: Vec<Point> = Vec::with_capacity(ntheta*nout);
+    edge_grid.resize(ntheta*nout, Point::default());
 
     let mut dirn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
     let mut posn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
@@ -277,12 +283,12 @@ pub fn set_disc_edge(model: Model, outer: bool, visual: bool) -> Vec<Point> {
 
         // Primary star can expand to wipe out inner disc; trap but report such errors
         if model.eclipse1 {
-            eclipses = star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary);
+            star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses);
             // might need to add the error catching here
         }
 
         if model.eclipse2 {
-            eclipses = star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary);
+            star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses);
         }
         edge_grid[nface] = Point::new(posn, dirn, area/2.0, 1.0, eclipses.clone());
         nface += 1;
@@ -305,11 +311,11 @@ pub fn set_disc_edge(model: Model, outer: bool, visual: bool) -> Vec<Point> {
             }
 
             if model.eclipse1 {
-                eclipses = star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary);
+                star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses);
             }
 
             if model.eclipse2 {
-                eclipses = star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary);
+                star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses);
             }
             edge_grid[nface] = Point::new(posn, dirn, area, 1.0, eclipses.clone());
             nface += 1;

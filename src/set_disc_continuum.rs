@@ -78,6 +78,6 @@ pub fn set_edge_continuum(tedge: f64, r2: f64, t2: f64, absorb: f64, wave: f64, 
             // No irradiation
             temp = tedge;
         }
-        point.flux = point.area * planck(wave, temp) as f32;
+        point.set_flux(point.area * planck(wave, temp) as f32);
     }
 }

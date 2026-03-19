@@ -414,3 +414,163 @@ pub fn comp_star2(
     return sum/(1.max(n_div-1) as f64);
     
 }
+
+
+pub fn comp_disc(
+    iangle: f64,
+    lin_limb_disc: f64,
+    quad_limb_disc: f64,
+    phase: f64,
+    expose: f64,
+    n_div: i32,
+    disc_grid: &Vec<Point>
+) -> f64 {
+
+    let ri = iangle.to_radians();
+    let (sini, cosi) = ri.sin_cos();
+
+    let mut earth: Vec3;
+    let mut phi: f64;
+    let mut sum: f64 = 0.0;
+    let mut ssum;
+    let mut mu;
+    let mut wgt;
+
+    for div in 0..n_div {
+
+        if n_div == 1 {
+            phi = phase;
+            wgt = 1.0;
+        } else {
+            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            if div == 0 || div == n_div - 1 {
+                wgt = 0.5;
+            } else {
+                wgt = 1.0
+            }
+        }
+
+        earth = set_earth(cosi, sini, phi);
+
+        ssum = 0.0;
+        // Disc
+        for point in disc_grid {
+            mu = earth.dot(&point.direction);
+            if mu > 0.0 && point.is_visible(phi) {
+                ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
+            }
+        }
+
+        sum += wgt*ssum
+
+    }
+
+    return sum/(1.max(n_div-1) as f64);
+
+}
+
+
+pub fn comp_disc_edge(
+    iangle: f64,
+    lin_limb_disc: f64,
+    quad_limb_disc: f64,
+    phase: f64,
+    expose: f64,
+    n_div: i32,
+    disc_edge_grid: &Vec<Point>
+) -> f64 {
+
+    let ri = iangle.to_radians();
+    let (sini, cosi) = ri.sin_cos();
+
+    let mut earth: Vec3;
+    let mut phi: f64;
+    let mut sum: f64 = 0.0;
+    let mut ssum;
+    let mut mu;
+    let mut wgt;
+
+    for div in 0..n_div {
+
+        if n_div == 1 {
+            phi = phase;
+            wgt = 1.0;
+        } else {
+            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            if div == 0 || div == n_div - 1 {
+                wgt = 0.5;
+            } else {
+                wgt = 1.0
+            }
+        }
+
+        earth = set_earth(cosi, sini, phi);
+
+        ssum = 0.0;
+        // Disc edge
+        for point in disc_edge_grid {
+            mu = earth.dot(&point.direction);
+            if mu > 0.0 && point.is_visible(phi) {
+                ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
+            }
+        }
+
+        sum += wgt*ssum
+
+    }
+
+    return sum/(1.max(n_div-1) as f64);
+
+}
+
+
+pub fn comp_bright_spot(
+    iangle: f64,
+    phase: f64,
+    expose: f64,
+    n_div: i32,
+    bright_spot_grid: &Vec<Point>
+) -> f64 {
+
+    let ri = iangle.to_radians();
+    let (sini, cosi) = ri.sin_cos();
+
+    let mut earth: Vec3;
+    let mut phi: f64;
+    let mut sum: f64 = 0.0;
+    let mut ssum;
+    let mut mu;
+    let mut wgt;
+
+    for div in 0..n_div {
+
+        if n_div == 1 {
+            phi = phase;
+            wgt = 1.0;
+        } else {
+            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            if div == 0 || div == n_div - 1 {
+                wgt = 0.5;
+            } else {
+                wgt = 1.0
+            }
+        }
+
+        earth = set_earth(cosi, sini, phi);
+
+        ssum = 0.0;
+        // Bright spot
+        for point in bright_spot_grid {
+            mu = earth.dot(&point.direction);
+            if mu > 0.0 && point.is_visible(phi) {
+                ssum += mu*(point.flux as f64);
+            }
+        }
+
+        sum += wgt*ssum
+
+    }
+
+    return sum/(1.max(n_div-1) as f64);
+
+}

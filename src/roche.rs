@@ -1,6 +1,9 @@
 use std::panic;
 use std::f64::consts::{PI, TAU};
 use std::cmp;
+use bulirsch::{self, Integrator};
+// use numpy::ndarray;
+use ndarray;
 
 use crate::constants::{C, H, K};
 use crate::vec3::Vec3;
@@ -30,7 +33,7 @@ impl RocheContext {
         if q <= 0. {
             panic!("q = {} <= 0", q);
         }
-        let xl1 = match star {
+        let xl1: f64 = match star {
             Star::Primary => xl11(q, spin),
             Star::Secondary => xl12(q, spin),
         };
@@ -79,7 +82,7 @@ impl RocheContext {
 
         let (rref, pref) = self.ref_sphere(ffac);
 
-        let cofm = match self.star {
+        let cofm: Vec3 = match self.star {
             Star::Primary => Vec3::cofm1(),
             Star::Secondary => Vec3::cofm2(),
         };
@@ -102,8 +105,8 @@ impl RocheContext {
         // Now try to bracket a minimum. We just crudely compute function at regularly spaced intervals filling in the
         // gaps until the step size between the points drops below the threshold. Take every opportunity to jump out early
         // either if the potential is below the threshold or if we have bracketed a minimum.
-        let mut nstep = 1;
-        let mut step = lam2 - lam1;
+        let mut nstep: i32 = 1;
+        let mut step: f64 = lam2 - lam1;
 
         let mut f1: f64 = 0.0;
         let mut f2: f64 = 0.0;
@@ -170,12 +173,12 @@ impl RocheContext {
         let make_func = |phi0: f64, lam0: f64, dphi0: f64, dlam0: f64| {
             
             let func = move |x: f64| {
-                let earth = set_earth(cosi, sini, phi0 + dphi0 * x);
+                let earth: Vec3 = set_earth(cosi, sini, phi0 + dphi0 * x);
                 self.potential(&earth, p, lam0 + dlam0 * x)
             };
 
             let dfunc = move |x: f64| {
-                let earth = set_earth(cosi, sini, phi0 + dphi0 * x);
+                let earth: Vec3 = set_earth(cosi, sini, phi0 + dphi0 * x);
                 let (dp, dl) = self.gradient(&earth, p, lam0 + dlam0 * x);
                 dp * dphi0 + dl * dlam0
             };
@@ -191,7 +194,7 @@ impl RocheContext {
 
         let mut check = |bound: f64, val: f64, d: f64, id: i32| {
             if d != 0.0 {
-                let x = (bound - val) / d;
+                let x: f64 = (bound - val) / d;
                 if x > 0.0 && x < xmax {
                     xmax = x;
                     nbound = id;
@@ -207,11 +210,11 @@ impl RocheContext {
         // --- initial bracketing ---
         // Now the aim is to bracket the minimum, while accounting for the maximum
         // possible step so that we can then apply dbrent.
-        let xa = 0.0;
-        let fa = func(xa);
+        let xa: f64 = 0.0;
+        let fa: f64 = func(xa);
 
-        let mut xb = 1e-8 * xmax;
-        let mut fb = func(xb);
+        let mut xb: f64 = 1e-8 * xmax;
+        let mut fb: f64 = func(xb);
 
         // for _ in 0..7 {
         //     if fb < fa && xa != xb {
@@ -249,8 +252,8 @@ impl RocheContext {
         let mut xc: f64 = 0.0;
         let mut fc: f64 = 0.0;
 
-        let xbold = xb;
-        let fbold = fb;
+        let xbold: f64 = xb;
+        let fbold: f64 = fb;
         xmax -= xb;
 
         const NTRY: i32 = 5;
@@ -480,7 +483,7 @@ impl RocheContext {
 
         // --- Brent refinement ---
 
-        let xacc = acc / ((TAU*dphi).powi(2) + dlam*dlam).sqrt();
+        let xacc: f64 = acc / ((TAU*dphi).powi(2) + dlam*dlam).sqrt();
 
         let (xmin, pmin) = dbrent(xa, xb, xc, &func, &dfunc, xacc, true, pref).unwrap();
 
@@ -565,7 +568,7 @@ impl RocheContext {
         let mut pvec: Vec3;
         let mut r: f64;
 
-        let cofm = match self.star {
+        let cofm: Vec3 = match self.star {
             Star::Primary => Vec3::cofm1(),
             Star::Secondary => Vec3::cofm2(),
         };
@@ -580,7 +583,7 @@ impl RocheContext {
             Star::Secondary => drpot2,
         };
 
-        let mut tref = rp(self.q, self.spin, &(cofm + rref*direction));
+        let mut tref: f64 = rp(self.q, self.spin, &(cofm + rref*direction));
         if tref < pref {
             panic!("stuff")
         }
@@ -634,7 +637,7 @@ impl RocheContext {
         let ri: f64 = iangle.to_radians();
         let (sini, cosi) = ri.sin_cos();
 
-        let cofm = match self.star {
+        let cofm: Vec3 = match self.star {
             Star::Primary => Vec3::cofm1(),
             Star::Secondary => Vec3::cofm2(),
         };
@@ -648,7 +651,7 @@ impl RocheContext {
 
         if sphere_eclipse(cosi, sini, r, &cofm, rref, &mut phi1, &mut phi2, &mut lam1, &mut lam2) {
             
-            let acc = 2.*(2.*TAU*(lam2 - lam1)*delta).sqrt();
+            let acc: f64 = 2.*(2.*TAU*(lam2 - lam1)*delta).sqrt();
 
             if self.pot_min(cosi, sini, r, phi1, phi2, lam1, lam2, rref, pref, acc, &mut phi, &mut lam) {
 
@@ -792,13 +795,13 @@ pub fn rpot_val_grad(q: f64, star: Star, spin: f64, earth: &Vec3, p: &Vec3, lam:
             Star::Primary => drpot1(q, spin, &r),
             Star::Secondary => drpot2(q, spin, &r),
         };
-        let rpot = match star {
+        let rpot: f64 = match star {
             Star::Primary => rpot1(q, spin, &r),
             Star::Secondary => rpot2(q, spin, &r),
         };
-        let ed = Vec3::new(earth.y, -earth.x, 0.);
-        let dphi = 2.*PI*lam*d.dot(&ed);
-        let dlam = d.dot(earth);
+        let ed: Vec3 = Vec3::new(earth.y, -earth.x, 0.);
+        let dphi: f64 = 2.*PI*lam*d.dot(&ed);
+        let dlam: f64 = d.dot(earth);
 
         (rpot, dphi, dlam)
     }
@@ -820,10 +823,10 @@ pub fn rpot_grad(
             Star::Secondary => drpot2(q, spin, &r),
         };
 
-        let ed = Vec3::new(earth.y, -earth.x, 0.);
+        let ed: Vec3 = Vec3::new(earth.y, -earth.x, 0.);
 
-        let dphi = 2.*PI * lam*d.dot(&ed);
-        let dlam = d.dot(earth);
+        let dphi: f64 = 2.*PI * lam*d.dot(&ed);
+        let dlam: f64 = d.dot(earth);
 
         (dphi, dlam)
 }
@@ -845,33 +848,33 @@ where
 {
     const ITMAX: usize = 100;
 
-    let mut a = ax.min(cx);
-    let mut b = ax.max(cx);
+    let mut a: f64 = ax.min(cx);
+    let mut b: f64 = ax.max(cx);
 
-    let mut x = bx;
-    let mut w = bx;
-    let mut v = bx;
+    let mut x: f64 = bx;
+    let mut w: f64 = bx;
+    let mut v: f64 = bx;
 
-    let mut fx = func(x);
-    let mut fw = fx;
-    let mut fv = fx;
+    let mut fx: f64 = func(x);
+    let mut fw: f64 = fx;
+    let mut fv: f64 = fx;
 
     if stopfast && fx < fref {
         return Ok((x, fx));
     }
 
-    let mut dx = dfunc(x);
-    let mut dw = dx;
-    let mut dv = dx;
+    let mut dx: f64 = dfunc(x);
+    let mut dw: f64 = dx;
+    let mut dv: f64 = dx;
 
     let mut e: f64 = 0.0;
     let mut d: f64 = 0.0;
 
     for _ in 0..ITMAX {
 
-        let xm = 0.5 * (a + b);
-        let tol1 = acc;
-        let tol2 = 2.0 * tol1;
+        let xm: f64 = 0.5 * (a + b);
+        let tol1: f64 = acc;
+        let tol2: f64 = 2.0 * tol1;
 
         if (x - xm).abs() <= (tol2 - 0.5 * (b - a)) {
             return Ok((x, fx));
@@ -893,13 +896,13 @@ where
                 d2 = (v - x) * dx / (dx - dv);
             }
 
-            let u1 = x + d1;
-            let u2 = x + d2;
+            let u1: f64 = x + d1;
+            let u2: f64 = x + d2;
 
-            let ok1 = (a - u1) * (u1 - b) > 0.0 && dx * d1 <= 0.0;
-            let ok2 = (a - u2) * (u2 - b) > 0.0 && dx * d2 <= 0.0;
+            let ok1: bool = (a - u1) * (u1 - b) > 0.0 && dx * d1 <= 0.0;
+            let ok2: bool = (a - u2) * (u2 - b) > 0.0 && dx * d2 <= 0.0;
 
-            let olde = e;
+            let olde: f64 = e;
             e = d;
 
             if ok1 || ok2 {
@@ -914,7 +917,7 @@ where
 
                 if d.abs() <= 0.5 * olde.abs() {
 
-                    let u = x + d;
+                    let u: f64 = x + d;
 
                     if (u - a) < tol2 || (b - u) < tol2 {
                         d = tol1.copysign(xm - x);
@@ -939,8 +942,8 @@ where
 
         }
 
-        let u;
-        let fu;
+        let u: f64;
+        let fu: f64;
 
         if d.abs() >= tol1 {
 
@@ -965,7 +968,7 @@ where
             }
         }
 
-        let du = dfunc(u);
+        let du: f64 = dfunc(u);
 
         if fu <= fx {
 
@@ -1000,13 +1003,13 @@ pub fn rpot(q: f64, p: &Vec3) -> f64 {
     if q <= 0. {
         panic!("q = {} <= 0", q);
     }
-    let mu = q/(1. + q);
-    let comp = 1. - mu;
-    let x2y2 = p.x*p.x + p.y*p.y;
-    let z2 = p.z*p.z;
-    let r1sq = x2y2+z2;
-    let r1 = r1sq.sqrt();
-    let r2 = (r1sq + 1. - 2.*p.x).sqrt();
+    let mu: f64 = q/(1. + q);
+    let comp: f64 = 1. - mu;
+    let x2y2: f64 = p.x*p.x + p.y*p.y;
+    let z2: f64 = p.z*p.z;
+    let r1sq: f64 = x2y2+z2;
+    let r1: f64 = r1sq.sqrt();
+    let r2: f64 = (r1sq + 1. - 2.*p.x).sqrt();
     -comp/r1 - mu/r2 - (x2y2 + mu*(mu - 2.*p.x))/2.
 }
 
@@ -1015,13 +1018,13 @@ pub fn rpot1(q: f64, spin: f64, p: &Vec3) -> f64 {
     if q <= 0. {
         panic!("q = {} <= 0", q);
     }
-    let mu = q/(1. + q);
-    let comp = 1. - mu;
-    let x2y2 = p.x*p.x + p.y*p.y;
-    let z2 = p.z*p.z;
-    let r1sq = x2y2+z2;
-    let r1 = r1sq.sqrt();
-    let r2 = (r1sq + 1. - 2.*p.x).sqrt();
+    let mu: f64 = q/(1. + q);
+    let comp: f64 = 1. - mu;
+    let x2y2: f64 = p.x*p.x + p.y*p.y;
+    let z2: f64 = p.z*p.z;
+    let r1sq: f64 = x2y2+z2;
+    let r1: f64 = r1sq.sqrt();
+    let r2: f64 = (r1sq + 1. - 2.*p.x).sqrt();
     -comp/r1 - mu/r2 - spin*spin*x2y2/2. + mu*p.x
 }
 
@@ -1030,13 +1033,13 @@ pub fn rpot2(q: f64, spin: f64, p: &Vec3) -> f64 {
     if q <= 0. {
         panic!("q = {} <= 0", q);
     }
-    let mu = q/(1. + q);
-    let comp = 1. - mu;
-    let x2y2 = p.x*p.x + p.y*p.y;
-    let z2 = p.z*p.z;
-    let r1sq = x2y2+z2;
-    let r1 = r1sq.sqrt();
-    let r2 = (r1sq + 1. - 2.*p.x).sqrt();
+    let mu: f64 = q/(1. + q);
+    let comp: f64 = 1. - mu;
+    let x2y2: f64 = p.x*p.x + p.y*p.y;
+    let z2: f64 = p.z*p.z;
+    let r1sq: f64 = x2y2+z2;
+    let r1: f64 = r1sq.sqrt();
+    let r2: f64 = (r1sq + 1. - 2.*p.x).sqrt();
     -comp/r1 - mu/r2 - spin*spin*(0.5 + 0.5*x2y2 - p.x) - comp*p.x
 }
 
@@ -1069,7 +1072,7 @@ pub fn drpot1(q: f64, spin: f64, p: &Vec3) -> Vec3 {
     let mu: f64 = q/(1. + q);
     let mu1: f64 = mu/r2/r2sq;
     let comp: f64 = (1. - mu)/r1/r1sq;
-    let ssq = spin*spin;
+    let ssq: f64 = spin*spin;
     Vec3::new(comp*p.x + mu1*(p.x - 1.) - ssq*p.x + mu,
               comp*p.y + mu1*p.y - ssq*p.y,
               comp*p.z + mu1*p.z)
@@ -1087,7 +1090,7 @@ pub fn drpot2(q: f64, spin: f64, p: &Vec3) -> Vec3 {
     let mu: f64 = q/(1. + q);
     let mu1: f64 = mu/r2/r2sq;
     let comp: f64 = (1. - mu)/r1/r1sq;
-    let ssq = spin*spin;
+    let ssq: f64 = spin*spin;
     Vec3::new(comp*p.x + mu1*(p.x - 1.) - ssq*(p.x - 1.) + mu - 1.,
               comp*p.y + mu1*p.y - ssq*p.y,
               comp*p.z + mu1*p.z)
@@ -1095,13 +1098,13 @@ pub fn drpot2(q: f64, spin: f64, p: &Vec3) -> Vec3 {
 
 
 pub fn numface(nlat: u32, infill: bool, thelo: f64, thehi: f64, nlatfill: u32, nlngfill: u32) -> u32 {
-    let mut nface = 0;
+    let mut nface: u32 = 0;
     let mut theta: f64;
     let mut dphi: f64;
-    let dtheta = PI/nlat as f64;
+    let dtheta: f64 = PI/nlat as f64;
 
     if infill {
-        let nl1 = (thelo/dtheta).ceil() as u32;
+        let nl1: u32 = (thelo/dtheta).ceil() as u32;
         for i in 0..nl1 {
             theta = thelo*(i as f64 + 0.5)/nl1 as f64;
             dphi = dtheta/theta.sin();
@@ -1126,7 +1129,7 @@ pub fn numface(nlat: u32, infill: bool, thelo: f64, thehi: f64, nlatfill: u32, n
             nface += cmp::max(16, (2.*PI/dphi) as u32)
         }
     } else {
-        let nlat = (PI/dtheta).ceil() as u32;
+        let nlat: u32 = (PI/dtheta).ceil() as u32;
         for i in 0..nlat {
             theta = PI*(i as f64 + 0.5)/nlat as f64;
             dphi = dtheta/theta.sin();
@@ -1193,84 +1196,105 @@ pub fn strinit(q: f64) -> (Vec3, Vec3) {
 }
 
 
-// pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64) -> f64 {
+pub fn stradv(q: f64, r: &mut Vec3, v: &mut Vec3, rad: f64, acc: f64, smax: f64) -> f64 {
 
-//     // stradv advances a particle of given position and velocity until
-//     // it reaches a specified radius. It then returns with updated position and
-//     // velocity. It is up to the user not to request a value that cannot be reached.
-//     //
-//     // \param q    mass ratio = M2/M1
-//     // \param r    Initial and final position
-//     // \param v    Initial and final velocity
-//     // \param rad  Radius to aim for
-//     // \param acc  Accuracy with which to place output point at rad.
-//     // \param smax Largest time step allowed. It is possible that the
-//     // routine could take such a large step that it misses
-//     // the point when the stream is inside the requested
-//     // radius. This allows one to control this. Typical
-//     // value = 1.e-3.
-//     //
-//     // Returns time step taken
-//     //
+    // stradv advances a particle of given position and velocity until
+    // it reaches a specified radius. It then returns with updated position and
+    // velocity. It is up to the user not to request a value that cannot be reached.
+    //
+    // \param q    mass ratio = M2/M1
+    // \param r    Initial and final position
+    // \param v    Initial and final velocity
+    // \param rad  Radius to aim for
+    // \param acc  Accuracy with which to place output point at rad.
+    // \param smax Largest time step allowed. It is possible that the
+    // routine could take such a large step that it misses
+    // the point when the stream is inside the requested
+    // radius. This allows one to control this. Typical
+    // value = 1.e-3.
+    //
+    // Returns time step taken
+    //
 
-//     const EPS: f64 = 1.0e-8;
-//     const TMAX: f64 = 10.0;
-//     static TNEXT: f64 = 1.0e-2;
+    const TMAX: f64 = 10.0;
+    let t_next: f64 = 1.0e-2;
 
-//     // Store initial radius
-//     let rinit: f64 = r.length();
-//     let mut rnow: f64 = rinit;
-//     let ttry: f64;
-//     let tdid: f64;
-//     let time: f64;
-//     let lo: f64;
-//     let hi: f64;
-//     let rlo: f64;
-//     let rhi: f64;
-//     let to: f64;
-//     let ro: Vec3;
-//     let vo: Vec3;
+    let mut time: f64 = 0.0;
 
-//     // Step until radius crossed
-//     let time: f64 = 0.0;
-//     while (rinit > rad && rnow > rad) || (rinit < rad && rnow < rad) {
-//         ro = *r;
-//         vo = *v;
-//         ttry = TNEXT.min(smax);
-//         gsint(q, r, v, ttry, tdid, TNEXT, time, EPS);
-//         rnow = r.length();
-//         if time > TMAX {
-//             panic!("roche::stradv taken too long without crossing given radius.")
-//         }
-//     }
+    // let to: f64;
+    let mut ro = *r;
+    let mut vo = *v;
+    
+    // Store initial radius
+    let rinit: f64 = r.length();
+    let mut rnow: f64 = rinit;
 
-//     // Now refine by reinitialising and binary chopping until
-//     // close enough to requested radius.
 
-//     lo = 0.0;
-//     hi = tdid;
-//     rlo = ro.length();
-//     rhi = rnow;
-//     to = time;
-//     while (rhi-rlo).abs() > acc {
-//         ttry = (lo+hi)/2.0;
-//         *r = ro;
-//         *v = vo;
-//         time = to;
-//         gsint(q, r, v, ttry, tdid, TNEXT, time, EPS);
-//         rnow = r.length();
-//         if (rhi > rad && rnow > rad) || (rhi < rad && rnow < rad) {
-//             rhi = rnow;
-//             hi = ttry;
-//         } else {
-//             rlo = rnow;
-//             lo = ttry;
-//         }
-//     }
+    // set up Bulirsch-Stoer integrator
+    let system = OrbitalSystem{ q: q };
+    let mut integrator = Integrator::default().with_abs_tol(1.0e-8).with_rel_tol(1.0e-8).into_adaptive();
+    // Initialise arrays
+    let mut y = ndarray::array![r.x, r.y, r.z, v.x, v.y, v.z];
+    let mut y_next = ndarray::Array::zeros(y.raw_dim());
+    
+    let mut yo = y.clone();
+    let mut delta_t = t_next.min(smax);
+    // Step until radius crossed
+    while (rinit > rad && rnow > rad) || (rinit < rad && rnow < rad) {
+        ro = *r;
+        vo = *v;
+        yo = y.clone();
+        integrator
+            .step(&system, delta_t, y.view(), y_next.view_mut())
+            .unwrap();
+        y.assign(&y_next);
+        r.set(y[0], y[1], y[2]);
+        v.set(y[3], y[4], y[5]);
+        rnow = r.length();
+        time += delta_t;
+        
+        if time > TMAX {
+            panic!("roche::stradv taken too long without crossing given radius.")
+        }
+    }
 
-//     return time
+    // Now refine by reinitialising and binary chopping until
+    // close enough to requested radius.
 
-// }
+    let mut lo: f64 = 0.0;
+    let mut hi: f64 = delta_t;
+    let mut rlo: f64 = ro.length();
+    let mut rhi: f64 = rnow;
+    let to: f64 = time;
+
+    while (rhi-rlo).abs() > acc {
+        delta_t = (lo+hi)/2.0;
+        y = yo.clone();
+        *r = ro;
+        *v = vo;
+        time = to;
+
+        integrator
+            .step(&system, delta_t, y.view(), y_next.view_mut())
+            .unwrap();
+        y.assign(&y_next);
+
+        r.set(y[0], y[1], y[2]);
+        v.set(y[3], y[4], y[5]);
+        rnow = r.length();
+
+        if (rhi > rad && rnow > rad) || (rhi < rad && rnow < rad) {
+            rhi = rnow;
+            hi = delta_t;
+        } else {
+            rlo = rnow;
+            lo = delta_t;
+        }
+    }
+
+    time
+
+}
 
 
 
@@ -1283,18 +1307,18 @@ pub fn xl1(q: f64) -> f64 {
         panic!("q = {} <= 0", q);
     }
 
-    let mu = q/(1. + q);
-    let a1 = -1. + mu;
-    let a2 =  2. - 2.*mu;
-    let a3 = -1. + mu;
-    let a4 =  1. + 2.*mu;
-    let a5 = -2. - mu;
-    let a6 = 1.;
-    let d1 = 1.*a2;
-    let d2 = 2.*a3;
-    let d3 = 3.*a4;
-    let d4 = 4.*a5;
-    let d5 = 5.*a6;
+    let mu: f64 = q/(1. + q);
+    let a1: f64 = -1.0 + mu;
+    let a2: f64 =  2.0 - 2.*mu;
+    let a3: f64 = -1.0 + mu;
+    let a4: f64 =  1.0 + 2.*mu;
+    let a5: f64 = -2.0 - mu;
+    let a6: f64 = 1.0;
+    let d1: f64 = 1.0*a2;
+    let d2: f64 = 2.0*a3;
+    let d3: f64 = 3.0*a4;
+    let d4: f64 = 4.0*a5;
+    let d5: f64 = 5.0*a6;
 
     let mut n: i32 = 0;
     let mut xold: f64 = 0.;
@@ -1349,6 +1373,7 @@ pub fn xl11(q: f64, spin: f64) -> f64 {
     }
     return x
 }
+
 
 #[inline]
 pub fn xl12(q: f64, spin: f64) -> f64 {
@@ -1516,39 +1541,10 @@ pub fn dlpdlt(wave: f64, temp: f64) -> f64 {
 }
 
 
-// pub fn rocder(t: f64, )
-
-
-pub fn rocacc(q: f64, r: &Vec3, v: &Vec3) -> Vec3 {
-
-    //
-    // rocacc calculates and returns the acceleration (in the rotating frame)
-    // in a Roche potential of a particle of given position and velocity.
-    //
-    // \param q mass ratio = M2/M1
-    // \param r position, scaled in units of separation.
-    // \param v velocity, scaled in units of separation
-    //
-
-    let f1: f64 = 1.0 / (1.0+q);
-    let f2: f64 = f1*q;
-
-    let yzsq: f64 = r.y*r.y + r.z*r.z;
-    let r1sq: f64 = r.x*r.x + yzsq;
-    let r2sq: f64 = (r.x-1.0)*(r.x-1.0) + yzsq;
-    let fm1: f64 = f1/(r1sq*r1sq.sqrt());
-    let fm2: f64 = f2/(r2sq*r2sq.sqrt());
-    let fm3 = fm1+fm2;
-
-    let x: f64 = -fm3*r.x + fm2 + 2.0*v.y + r.x - f2;
-    let y: f64 = -fm3*r.y       + 2.0*v.x + r.y;
-    let z: f64 = -fm3*r.z;
-    Vec3::new(x, y, z)
-}
 
 
 pub struct Ginterp {
-
+    
     // Start phase of coarse grid 0 -- 0.5
     pub phase1: f64,
     // End phase of coarse grid 0 -- 0.5
@@ -1587,8 +1583,8 @@ impl Ginterp {
             return (self.scale21*(1.0+self.phase2-pnorm)+self.scale22*(pnorm-1.0+self.phase2))/(2.0*self.phase2);
         }
     }
-
-
+    
+    
     pub fn interp_type(&self, phase: f64) -> i32 {
         let pnorm: f64 = phase - phase.floor();
         if pnorm <= self.phase1 || pnorm >= 1.0-self.phase1 {
@@ -1603,3 +1599,50 @@ impl Ginterp {
         }
     }
 }
+
+
+pub fn rocacc(q: f64, r: &Vec3, v: &Vec3) -> (f64, f64, f64) {
+
+    //
+    // rocacc calculates and returns the acceleration (in the rotating frame)
+    // in a Roche potential of a particle of given position and velocity.
+    //
+    // \param q mass ratio = M2/M1
+    // \param r position, scaled in units of separation.
+    // \param v velocity, scaled in units of separation
+    //
+
+    let f1: f64 = 1.0 / (1.0+q);
+    let f2: f64 = f1*q;
+
+    let yzsq: f64 = r.y*r.y + r.z*r.z;
+    let r1sq: f64 = r.x*r.x + yzsq;
+    let r2sq: f64 = (r.x-1.0)*(r.x-1.0) + yzsq;
+    let fm1: f64 = f1/(r1sq*(r1sq.sqrt()));
+    let fm2: f64 = f2/(r2sq*(r2sq.sqrt()));
+    let fm3 = fm1+fm2;
+
+    let x: f64 = -fm3*r.x + fm2 + 2.0*v.y + r.x - f2;
+    let y: f64 = -fm3*r.y       - 2.0*v.x + r.y;
+    let z: f64 = -fm3*r.z;
+    (x, y, z)
+}
+
+
+struct OrbitalSystem {
+    q: f64,
+}
+
+impl bulirsch::System for OrbitalSystem {
+    type Float = f64;
+    
+    fn system(&self, y: bulirsch::ArrayView1<Self::Float>, mut dydt: bulirsch::ArrayViewMut1<Self::Float>) {
+        dydt[[0]] = y[[3]];
+        dydt[[1]] = y[[4]];
+        dydt[[2]] = y[[5]];
+        let r = Vec3::new(y[[0]], y[[1]], y[[2]]);
+        let v = Vec3::new(y[[3]], y[[4]], y[[5]]);
+        (dydt[[3]], dydt[[4]], dydt[[5]]) = rocacc(self.q, &r, &v);
+    }
+}
+

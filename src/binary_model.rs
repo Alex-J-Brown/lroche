@@ -4,12 +4,15 @@ use rayon::prelude::*;
 use pyo3::prelude::*;
 use numpy::{PyReadonlyArray1, PyReadwriteArray1};
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
-use crate::comp_light::{comp_star1, comp_star2};
+use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::constants::{C, DAY};
 use crate::roche::{Ginterp, Star, planck, xl12};
-use crate::model::{Entry, LDC, Model, Point};
+use crate::model::{Entry, Etype, LDC, Model, Point};
+use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
+use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
+use crate::set_bright_spot_grid::set_bright_spot_grid;
 use crate::set_star_continuum::set_star_continuum;
-use crate::set_star_grid::set_star_grid;
+use crate::set_star_grid::{disc_eclipse, set_star_grid};
 
 #[pyclass]
 pub struct BinaryModel {
@@ -17,6 +20,9 @@ pub struct BinaryModel {
     star2_coarse_grid: Vec<Point>,
     star1_fine_grid: Vec<Point>,
     star2_fine_grid: Vec<Point>,
+    disc_grid: Vec<Point>,
+    disc_edge_grid: Vec<Point>,
+    bright_spot_grid: Vec<Point>,
     gint: Ginterp,
     rlens1: f64,
     model: Model
@@ -64,6 +70,10 @@ impl BinaryModel {
             set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
         }
 
+        let disc_grid: Vec<Point> = vec![];
+        let disc_edge_grid: Vec<Point> = vec![];
+        let bright_spot_grid: Vec<Point> = vec![];
+
         let gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
 
 
@@ -82,6 +92,9 @@ impl BinaryModel {
             star2_coarse_grid,
             star1_fine_grid,
             star2_fine_grid,
+            disc_grid,
+            disc_edge_grid,
+            bright_spot_grid,
             gint,
             rlens1,
             model
@@ -113,19 +126,24 @@ impl BinaryModel {
         } else {
             star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
         }
-
+        
         let copy2: bool = (model.nlat2f == model.nlat2c) &&
-                        (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
+        (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
         
         if copy2 {
             star2_coarse_grid = star2_fine_grid.clone();
         } else {
             star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
         }
-
+        
         if model.nlat1c != model.nlat1f || !copy2 {
             set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
         }
+        
+        let mut disc_grid: Vec<Point> = vec![];
+        let mut disc_edge_grid: Vec<Point> = vec![];
+        let mut bright_spot_grid: Vec<Point> = vec![];
+
 
         let mut gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
 
@@ -160,16 +178,78 @@ impl BinaryModel {
             gint.scale22 = ff/fc;
         }
 
+        if model.add_disc {
+            disc_grid = set_disc_grid(&model);
+            disc_edge_grid = set_disc_edge_grid(&model, true, false);
+
+            let rdisc1 = if model.rdisc1.value > 0.0 {
+                model.rdisc1.value
+            } else {
+                r1
+            };
+            let rdisc2 = if model.rdisc2.value > 0.0 {
+                model.rdisc2.value
+            } else {
+                model.radius_spot.value
+            };
+
+            let mut eclipses: Etype;
+            if model.opaque {
+                for point in &mut star1_fine_grid {
+                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                    for i in 0..eclipses.len() {
+                        point.eclipse.push(eclipses[i]);
+                    }
+                }
+                for point in &mut star1_coarse_grid {
+                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                    for i in 0..eclipses.len() {
+                        point.eclipse.push(eclipses[i]);
+                    }
+                }
+                for point in &mut star2_fine_grid {
+                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                    for i in 0..eclipses.len() {
+                        point.eclipse.push(eclipses[i]);
+                    }
+                }
+                for point in &mut star2_coarse_grid {
+                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                    for i in 0..eclipses.len() {
+                        point.eclipse.push(eclipses[i]);
+                    }
+                }
+            }
+            
+            // Set the surface brightness of the disc
+            set_disc_continuum(rdisc2, model.temp_disc.value, model.texp_disc.value, model.wavelength, &mut disc_grid);
+
+            // Set the surface brightness of outer edge, accounting for
+            // irradiation by star 2
+            set_edge_continuum(model.temp_edge.value, r2, model.t2.value.abs(), model.absorb_edge.value, model.wavelength, &mut disc_edge_grid);
+
+        }
+
+        if model.add_spot {
+
+            bright_spot_grid = set_bright_spot_grid(&model);
+        }
+
+        
         Ok(Self {
             star1_coarse_grid,
             star2_coarse_grid,
             star1_fine_grid,
             star2_fine_grid,
+            disc_grid,
+            disc_edge_grid,
+            bright_spot_grid,
             gint,
             rlens1,
             model
         })
     }
+
 
     pub fn update_wavelength_dependent(&mut self, new_model: Bound<'_, PyDict>) -> () {
         let map = map_from_pydict(new_model).unwrap();
@@ -199,6 +279,7 @@ impl BinaryModel {
         
     }
 
+
     pub fn planck(
         &self,
         wavelength: Bound<'_, PyFloat>,
@@ -210,6 +291,7 @@ impl BinaryModel {
         Ok(flux)
     }
 
+
     pub fn compute_light_curve(
         &self,
         time: PyReadonlyArray1<f64>,
@@ -220,6 +302,9 @@ impl BinaryModel {
         n_div: PyReadonlyArray1<f64>,
         mut star1: PyReadwriteArray1<f64>,
         mut star2: PyReadwriteArray1<f64>,
+        mut disc: PyReadwriteArray1<f64>,
+        mut disc_edge: PyReadwriteArray1<f64>,
+        mut bright_spot: PyReadwriteArray1<f64>,
     ) -> PyResult<()> {
 
 
@@ -232,6 +317,9 @@ impl BinaryModel {
 
         let star1: &mut [f64] = star1.as_slice_mut()?;
         let star2: &mut[f64] = star2.as_slice_mut()?;
+        let disc: &mut[f64] = disc.as_slice_mut()?;
+        let disc_edge: &mut[f64] = disc_edge.as_slice_mut()?;
+        let bright_spot: &mut[f64] = bright_spot.as_slice_mut()?;
 
         let ldc1: LDC = self.model.get_ldc1();
         let ldc2: LDC = self.model.get_ldc2();
@@ -242,7 +330,7 @@ impl BinaryModel {
         .for_each(|(i, out)| {
             let phase = (time[i] - self.model.t0.value) / self.model.period.value;
             let expose: f64 = t_exp[i]/self.model.period.value;
-            *out = self.compute_flux(phase, &ldc1, expose, n_div[i] as i32);
+            *out = self.compute_star1_flux(phase, &ldc1, expose, n_div[i] as i32);
         });
 
         // let scale = rescale(flux, flux_err, weight, star1);
@@ -257,7 +345,35 @@ impl BinaryModel {
         .for_each(|(i, out)| {
             let phase = (time[i] - self.model.t0.value) / self.model.period.value;
             let expose: f64 = t_exp[i]/self.model.period.value;
-            *out = self.compute_flux2(phase, &ldc2, expose, n_div[i] as i32);
+            *out = self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
+        });
+
+
+        disc
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, out)| {
+            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let expose: f64 = t_exp[i]/self.model.period.value;
+            *out = self.compute_disc_flux(phase, expose, n_div[i] as i32);
+        });
+
+        disc_edge
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, out)| {
+            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let expose: f64 = t_exp[i]/self.model.period.value;
+            *out = self.compute_disc_edge_flux(phase, expose, n_div[i] as i32);
+        });
+
+        bright_spot
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(i, out)| {
+            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let expose: f64 = t_exp[i]/self.model.period.value;
+            *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
 
         Ok(())
@@ -267,7 +383,7 @@ impl BinaryModel {
 
 
 impl BinaryModel {
-    fn compute_flux(&self, phase: f64, ldc1: &LDC, expose: f64, n_div: i32) -> f64 {
+    fn compute_star1_flux(&self, phase: f64, ldc1: &LDC, expose: f64, n_div: i32) -> f64 {
 
         let flux: f64;
 
@@ -277,7 +393,7 @@ impl BinaryModel {
         flux
     }
 
-    fn compute_flux2(&self, phase: f64, ldc2: &LDC, expose: f64, n_div: i32) -> f64 {
+    fn compute_star2_flux(&self, phase: f64, ldc2: &LDC, expose: f64, n_div: i32) -> f64 {
 
         let star2_flux: f64;
 
@@ -285,6 +401,36 @@ impl BinaryModel {
         star2_flux = comp_star2(self.model.iangle.value, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
 
         star2_flux
+    }
+
+    fn compute_disc_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
+
+        let disc_flux: f64;
+
+        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
+        disc_flux = comp_disc(self.model.iangle.value, self.model.lin_limb_disc.value, self.model.quad_limb_disc.value, phase, expose, n_div, &self.disc_grid);
+
+        disc_flux
+    }
+
+    fn compute_disc_edge_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
+
+        let disc_edge_flux: f64;
+
+        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
+        disc_edge_flux = comp_disc_edge(self.model.iangle.value, self.model.lin_limb_disc.value, self.model.quad_limb_disc.value, phase, expose, n_div, &self.disc_edge_grid);
+
+        disc_edge_flux
+    }
+
+    fn compute_bright_spot_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
+
+        let bright_spot_flux: f64;
+
+        // (_, star2_flux) = comp_light(self.model.iangle.value, ldc1, ldc2, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.beam_factor2.value, self.model.spin1.value, self.model.spin2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star1_fine_grid, &self.star2_fine_grid, &self.star1_coarse_grid, &self.star2_coarse_grid);
+        bright_spot_flux = comp_bright_spot(self.model.iangle.value, phase, expose, n_div, &self.bright_spot_grid);
+
+        bright_spot_flux
     }
 
 }

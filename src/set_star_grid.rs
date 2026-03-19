@@ -344,7 +344,7 @@ pub fn add_faces(
 }
 
 
-pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64, posn: &Vec3, delta: f64, roche: bool, star: Star) -> Etype {
+pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64, posn: &Vec3, delta: f64, roche: bool, star: Star, eclipses: &mut Etype) -> () {
     let ri = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
     let cofm = match star {
@@ -355,12 +355,11 @@ pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64
     let mut lam2: f64 = 0.0;
     let mut ingress: f64 = 0.0;
     let mut egress: f64 = 0.0;
-    let mut eclipses = Etype::new();
+    // let mut eclipses = Etype::new();
     if (roche && roche_context.ingress_egress(ffac, iangle, delta, &posn, &mut ingress, &mut egress)) ||
         (!roche && roche::sphere_eclipse(cosi, sini, &posn, &cofm, r, &mut ingress, &mut egress, &mut lam1, &mut lam2)) {
         eclipses.push((ingress, egress));
         }
-    eclipses
 }
 
 
