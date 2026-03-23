@@ -262,9 +262,10 @@ impl FromStr for Pparam {
         let value = fields.next().ok_or("missing value")?.parse().map_err(|_| "bad value")?;
         let range = fields.next().ok_or("missing range")?.parse().map_err(|_| "bad range")?;
         let dstep = fields.next().ok_or("missing dstep")?.parse().map_err(|_| "bad dstep")?;
-        // let vary = fields.next().ok_or("missing vary")?.parse().map_err(|_| "bad vary")?;
+        let vary = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
+        let defined = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
 
-        Ok(Pparam { value, range, dstep, vary: true, defined: true})
+        Ok(Pparam { value, range, dstep, vary: vary, defined: defined})
     }
 }
 #[derive(Debug, Clone, Copy)]
