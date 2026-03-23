@@ -12,7 +12,7 @@ load in your data in python and then convert each column to a contiguous array.
 
 .. code-block:: python
 
-    flux = np.ascontiguousarray(time)
+    time = np.ascontiguousarray(time)
     t_exp = np.ascontiguousarray(t_exp)
     flux = np.ascontiguousarray(flux)
     flux_err = np.ascontiguousarray(flux_err)
@@ -24,7 +24,7 @@ Then calculate the model
 
 .. code-block:: python
 
-    lc = model.compute_light_curve(time, exp, flux, flux_err, weight, n_div)
+    lc = model.compute_light_curve(time, t_exp, flux, flux_err, weight, n_div)
 
     fig, ax = plt.subplots
     ax.plot(time, lc.star1)
