@@ -20,11 +20,11 @@ load in your data in python and then convert each column to a contiguous array.
     n_div = np.ascontiguousarray(n_div)
 
 
-Then calculate the model
+Then calculate the model. Note that flux, flux_err, and weight are optional. If flux and flux_err are supplied then the returned light curve model will be scaled to match the data. If weights are not given they will be assumed to be 1.
 
 .. code-block:: python
 
-    lc = model.compute_light_curve(time, t_exp, flux, flux_err, weight, n_div)
+    lc = model.compute_light_curve(time, t_exp, n_div, flux, flux_err, weight)
 
     fig, ax = plt.subplots
     ax.plot(time, lc.star1)
