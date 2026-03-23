@@ -92,7 +92,7 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
         // compute unirradiated temperature allowing for
         // offset from spot centre
         let mut t1: f64 = model.t1.value;
-
+        
         if is_spot11 {
             let dist: f64 = (spot11.dot(&point.position) / point.position.length()).acos().to_degrees();
             let exponent: f64 = -(dist/(model.stsp11_fwhm.value/EFAC)).powi(2) / 2.0;
@@ -134,12 +134,12 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
                     t1 += (model.uesp_temp.value - model.t1.value)*(-(dlat - model.uesp_lathw.value)/model.uesp_taper.value).exp();
                 } else {
                     t1 += (model.uesp_temp.value - model.t1.value)
-                            * (-(dlat - model.uesp_lathw.value)/model.uesp_taper.value).exp()
-                            * (-(dlong-longhw)/model.uesp_taper.value).exp();
+                    * (-(dlat - model.uesp_lathw.value)/model.uesp_taper.value).exp()
+                    * (-(dlong-longhw)/model.uesp_taper.value).exp();
                 }
             }
         }
-
+        
         if mu >= r2 {
 
             // Full tilt irradiation

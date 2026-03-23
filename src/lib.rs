@@ -11,6 +11,7 @@ mod set_bright_spot_grid;
 mod comp_light;
 mod constants;
 mod comp_gravity;
+mod comp_radius;
 mod binary_model;
 
 #[pymodule]

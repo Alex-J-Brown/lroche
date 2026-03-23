@@ -6,6 +6,7 @@ use numpy::{PyReadonlyArray1, IntoPyArray, PyArray1};
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
 use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
+use crate::comp_radius::comp_radius;
 use crate::constants::{C, DAY};
 use crate::roche::{self, Ginterp, Star, planck, xl12};
 use crate::model::{Entry, Etype, LDC, Model, Point};
@@ -41,6 +42,12 @@ pub struct LightCurve {
 
     #[pyo3(get)]
     pub logg2: Py<PyFloat>,
+
+    #[pyo3(get)]
+    pub rva1: Py<PyFloat>,
+
+    #[pyo3(get)]
+    pub rva2: Py<PyFloat>,
 
 }
 
@@ -310,44 +317,53 @@ impl BinaryModel {
     }
 
 
-    pub fn planck(
-        &self,
-        wavelength: Bound<'_, PyFloat>,
-        temp: Bound<'_, PyFloat>
-    ) -> PyResult<f64> {
-        let wavelength = wavelength.extract::<f64>().unwrap();
-        let temp = temp.extract::<f64>().unwrap();
-        let flux = planck(wavelength, temp);
-        Ok(flux)
-    }
-
 
     pub fn x_l1(&self, q: Bound<'_, PyFloat>) -> PyResult<f64> {
         let xl1 = roche::xl1(q.extract::<f64>().unwrap());
         Ok(xl1)
     }
 
-
+    #[pyo3(signature = (
+        time,
+        t_exp,
+        n_div,
+        flux=None,
+        flux_err=None,
+        weight=None,
+        autoscale=true
+    ))]
     pub fn compute_light_curve(
         &self,
         py: Python,
         time: PyReadonlyArray1<f64>,
         t_exp: PyReadonlyArray1<f64>,
-        flux: PyReadonlyArray1<f64>,
-        flux_err: PyReadonlyArray1<f64>,
-        weight: PyReadonlyArray1<f64>,
         n_div: PyReadonlyArray1<f64>,
+        flux: Option<PyReadonlyArray1<f64>>,
+        flux_err: Option<PyReadonlyArray1<f64>>,
+        weight: Option<PyReadonlyArray1<f64>>,
+        autoscale: bool,
     ) -> PyResult<LightCurve> {
 
 
         let time: &[f64] = time.as_slice()?;
         let t_exp: &[f64] = t_exp.as_slice()?;
-        let flux: &[f64] = flux.as_slice()?;
-        let flux_err: &[f64] = flux_err.as_slice()?;
-        let weight: &[f64] = weight.as_slice()?;
         let n_div: &[f64] = n_div.as_slice()?;
+        let flux = match &flux {
+            Some(f) => Some(f.as_slice()?),
+            None => None,
+        };
+        let flux_err = match &flux_err {
+            Some(f) => Some(f.as_slice()?),
+            None => None,
+        };
+        let weight = match &weight {
+            Some(f) => Some(f.as_slice()?),
+            None => None,
+        };
 
         let n: usize = time.len();
+
+        
 
         let mut star1 = vec![0.0; n];
         let mut star2 = vec![0.0; n];
@@ -407,17 +423,30 @@ impl BinaryModel {
         });
         
         
-        for i in 0..star1.len() {
+        for i in 0..time.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
 
-        // let scale = rescale(flux, flux_err, weight, &total);
-        // for val in s {
-        //     *val *= scale;
-        // }
+        if  flux.is_some() && flux_err.is_some() && autoscale {
+            let scale_factor = rescale(flux.unwrap(), flux_err.unwrap(), weight, &total);
+            for i in 0..time.len() {
+                star1[i] *= scale_factor;
+                star2[i] *= scale_factor;
+                disc[i] *= scale_factor;
+                disc_edge[i] *= scale_factor;
+                bright_spot[i] *= scale_factor;
+                total[i] *= scale_factor;
+            }
+        }
 
         let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid);
         let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid);
+        let rva1: f64 = if self.model.roche1 {
+            comp_radius(&self.star1_coarse_grid, Star::Primary)
+            } else {
+                self.model.r1.value
+            };
+        let rva2: f64 = comp_radius(&self.star2_coarse_grid, Star::Secondary);
         
         Ok(LightCurve {
             star1: star1.into_pyarray(py).unbind(),
@@ -427,7 +456,9 @@ impl BinaryModel {
             bright_spot: bright_spot.into_pyarray(py).unbind(),
             total: total.into_pyarray(py).unbind(),
             logg1: logg1.into_pyobject(py).unwrap().unbind(),
-            logg2: logg2.into_pyobject(py).unwrap().unbind()
+            logg2: logg2.into_pyobject(py).unwrap().unbind(),
+            rva1: rva1.into_pyobject(py).unwrap().unbind(),
+            rva2: rva2.into_pyobject(py).unwrap().unbind()
         })
 
     }
@@ -496,12 +527,19 @@ pub fn map_from_pydict(dict: Bound<'_, PyDict>) -> PyResult<HashMap<String, Entr
 }
 
 
-pub fn rescale(flux: &[f64], flux_err: &[f64], weight: &[f64], model_flux: &[f64]) -> f64 {
+pub fn rescale(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flux: &[f64]) -> f64 {
     let mut sdy: f64 = 0.0;
     let mut syy: f64 = 0.0;
     for i in 0..flux.len() {
-        if weight[i] > 0.0 {
-            let wgt: f64 = weight[i] / (flux_err[i]*flux_err[i]);
+        if let Some(weight) = weight {
+            if weight[i] > 0.0 {
+                let wgt = weight[i] / (flux_err[i]*flux_err[i]);
+                sdy += wgt*flux[i]*model_flux[i];
+                syy += wgt*model_flux[i]*model_flux[i];
+            }
+
+        } else {
+            let wgt = 1.0 / (flux_err[i] * flux_err[i]);
             sdy += wgt*flux[i]*model_flux[i];
             syy += wgt*model_flux[i]*model_flux[i];
         }
