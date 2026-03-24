@@ -1,4 +1,4 @@
-use crate::roche::{RocheContext, xl12, Star};
+use crate::roche::{RocheContext, Star};
 use crate::model::{Model, Point};
 use crate::constants::DAY;
 use crate::vec3::Vec3;
