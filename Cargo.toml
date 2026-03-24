@@ -11,5 +11,8 @@ crate-type = ["cdylib"]
 ndarray = "0.16.1"
 bulirsch = "0.1.12"
 numpy = "0.28.0"
-pyo3 = { version = "0.28.2", features = ["extension-module"] }
 rayon = "1.10"
+
+[dependencies.pyo3]
+version = "0.28.2"
+features = ["extension-module", "abi3-py38"]
