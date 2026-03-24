@@ -26,7 +26,7 @@ Then calculate the model. Note that flux, flux_err, and weight are optional. If 
 
     lc = model.compute_light_curve(time, t_exp, n_div, flux, flux_err, weight)
 
-    fig, ax = plt.subplots
+    fig, ax = plt.subplots()
     ax.plot(time, lc.star1)
     ax.plot(time, lc.star2)
     ax.plot(time, lc.disc)
