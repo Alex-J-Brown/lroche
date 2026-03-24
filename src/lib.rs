@@ -17,6 +17,7 @@ mod binary_model;
 #[pymodule]
 fn lroche(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<binary_model::BinaryModel>()?;
+    m.add_function(wrap_pyfunction!(binary_model::x_l1, m)?)?;
     Ok(())
 }
 
