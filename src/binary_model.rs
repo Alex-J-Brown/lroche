@@ -8,7 +8,7 @@ use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::comp_radius::comp_radius;
 use crate::constants::{C, DAY};
-use crate::roche::{self, Ginterp, Star, planck, xl12};
+use crate::roche::{self, Ginterp, Star, xl12};
 use crate::model::{Entry, Etype, LDC, Model, Point};
 use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
 use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
@@ -318,15 +318,11 @@ impl BinaryModel {
 
 
 
-    pub fn x_l1(&self, q: Bound<'_, PyFloat>) -> PyResult<f64> {
-        let xl1 = roche::xl1(q.extract::<f64>().unwrap());
-        Ok(xl1)
-    }
-
+    
     #[pyo3(signature = (
         time,
         t_exp,
-        n_div,
+        n_div=None,
         flux=None,
         flux_err=None,
         weight=None,
@@ -337,7 +333,7 @@ impl BinaryModel {
         py: Python,
         time: PyReadonlyArray1<f64>,
         t_exp: PyReadonlyArray1<f64>,
-        n_div: PyReadonlyArray1<f64>,
+        n_div: Option<PyReadonlyArray1<f64>>,
         flux: Option<PyReadonlyArray1<f64>>,
         flux_err: Option<PyReadonlyArray1<f64>>,
         weight: Option<PyReadonlyArray1<f64>>,
@@ -347,7 +343,16 @@ impl BinaryModel {
 
         let time: &[f64] = time.as_slice()?;
         let t_exp: &[f64] = t_exp.as_slice()?;
-        let n_div: &[f64] = n_div.as_slice()?;
+        // let n_div: &[f64] = n_div.as_slice()?;
+        let n: usize = time.len();
+
+        let n_div_default;
+        let n_div = if let Some(ref ndiv) = n_div {
+            ndiv.as_slice()?
+        } else {
+            n_div_default = vec![1.0_f64; n];
+            &n_div_default
+        };
         let flux = match &flux {
             Some(f) => Some(f.as_slice()?),
             None => None,
@@ -361,9 +366,6 @@ impl BinaryModel {
             None => None,
         };
 
-        let n: usize = time.len();
-
-        
 
         let mut star1 = vec![0.0; n];
         let mut star2 = vec![0.0; n];
@@ -379,7 +381,13 @@ impl BinaryModel {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i, out)| {
-            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value + phase*(self.model.period.value + self.model.pdot.value*phase) - time[i]) / (self.model.period.value + 2.0*self.model.pdot.value*phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value/self.model.period.value/2.0*((TAU*phase).cos() - 1.0);
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_star1_flux(phase, &ldc1, expose, n_div[i] as i32);
         });
@@ -389,7 +397,13 @@ impl BinaryModel {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i, out)| {
-            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value + phase*(self.model.period.value + self.model.pdot.value*phase) - time[i]) / (self.model.period.value + 2.0*self.model.pdot.value*phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value/self.model.period.value/2.0*((TAU*phase).cos() - 1.0);
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
         });
@@ -399,7 +413,13 @@ impl BinaryModel {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i, out)| {
-            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value + phase*(self.model.period.value + self.model.pdot.value*phase) - time[i]) / (self.model.period.value + 2.0*self.model.pdot.value*phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value/self.model.period.value/2.0*((TAU*phase).cos() - 1.0);
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_disc_flux(phase, expose, n_div[i] as i32);
         });
@@ -408,7 +428,13 @@ impl BinaryModel {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i, out)| {
-            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value + phase*(self.model.period.value + self.model.pdot.value*phase) - time[i]) / (self.model.period.value + 2.0*self.model.pdot.value*phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value/self.model.period.value/2.0*((TAU*phase).cos() - 1.0);
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_disc_edge_flux(phase, expose, n_div[i] as i32);
         });
@@ -417,7 +443,13 @@ impl BinaryModel {
         .par_iter_mut()
         .enumerate()
         .for_each(|(i, out)| {
-            let phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value + phase*(self.model.period.value + self.model.pdot.value*phase) - time[i]) / (self.model.period.value + 2.0*self.model.pdot.value*phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value/self.model.period.value/2.0*((TAU*phase).cos() - 1.0);
             let expose: f64 = t_exp[i]/self.model.period.value;
             *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
@@ -546,4 +578,10 @@ pub fn rescale(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flu
     }
     let scale: f64 = sdy/syy;
     scale
+}
+
+#[pyfunction]
+pub fn x_l1(q: Bound<'_, PyFloat>) -> PyResult<f64> {
+    let xl1 = roche::xl1(q.extract::<f64>().unwrap());
+    Ok(xl1)
 }
