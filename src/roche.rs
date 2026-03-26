@@ -2,7 +2,6 @@ use std::panic;
 use std::f64::consts::{PI, TAU};
 use std::cmp;
 use bulirsch::{self, Integrator};
-// use numpy::ndarray;
 use ndarray;
 
 use crate::constants::{C, H, K};
