@@ -14,7 +14,7 @@ version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdbb964461d0f1217e0dcfd69c2879c4318524c6650d149b410b962bbf0f7c87"
 dependencies = [
- "ndarray 0.16.1",
+ "ndarray",
  "num-traits",
 ]
 
@@ -63,13 +63,14 @@ checksum = "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
 
 [[package]]
 name = "lroche"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "bulirsch",
- "ndarray 0.16.1",
+ "ndarray",
  "numpy",
  "pyo3",
  "rayon",
+ "rust-roche",
 ]
 
 [[package]]
@@ -87,21 +88,6 @@ name = "ndarray"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "882ed72dce9365842bf196bdeedf5055305f11fc8c03dee7bb0194a6cad34841"
-dependencies = [
- "matrixmultiply",
- "num-complex",
- "num-integer",
- "num-traits",
- "portable-atomic",
- "portable-atomic-util",
- "rawpointer",
-]
-
-[[package]]
-name = "ndarray"
-version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "520080814a7a6b4a6e9070823bb24b4531daac8c4627e08ba5de8c5ef2f2752d"
 dependencies = [
  "matrixmultiply",
  "num-complex",
@@ -146,7 +132,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778da78c64ddc928ebf5ad9df5edf0789410ff3bdbf3619aed51cd789a6af1e2"
 dependencies = [
  "libc",
- "ndarray 0.17.2",
+ "ndarray",
  "num-complex",
  "num-integer",
  "num-traits",
@@ -276,6 +262,16 @@ checksum = "22e18b0f0062d30d4230b2e85ff77fdfe4326feb054b9783a3460d8435c8ab91"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "rust-roche"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a677062e72d8d882618eabc9102514158aa2e3768be5b28e9a611fbbb8145204"
+dependencies = [
+ "bulirsch",
+ "ndarray",
 ]
 
 [[package]]
