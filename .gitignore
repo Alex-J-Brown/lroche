@@ -17,6 +17,7 @@ target
 perf.data
 perf.data.old
 flamegraph.svg
+src/bin/profile.rs
 
 # RustRover
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
