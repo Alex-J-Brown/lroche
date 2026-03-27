@@ -205,6 +205,19 @@ pub struct Pparam {
     pub defined: bool
 }
 
+impl Default for Pparam {
+    fn default() -> Self {
+        Self {
+            value: 0.0,
+            range: 0.0,
+            dstep: 0.0,
+            vary: false,
+            defined: false
+        }
+    }
+}
+
+
 impl FromStr for Pparam {
     type Err = String;
 
@@ -382,8 +395,8 @@ impl Model {
             texp_disc: get_p(&map, "texp_disc")?,
             lin_limb_disc: get_p(&map, "lin_limb_disc")?,
             quad_limb_disc: get_p(&map, "quad_limb_disc")?,
-            temp_edge: get_p(&map, "temp_edge")?,
-            absorb_edge: get_p(&map, "absorb_edge")?,
+            temp_edge: get_p(&map, "temp_edge").unwrap_or(Pparam::default()),
+            absorb_edge: get_p(&map, "absorb_edge").unwrap_or(Pparam::default()),
             radius_spot: get_p(&map, "radius_spot")?,
             length_spot: get_p(&map, "length_spot")?,
             height_spot: get_p(&map, "height_spot")?,
@@ -395,36 +408,36 @@ impl Model {
             tilt_spot: get_p(&map, "tilt_spot")?,
             cfrac_spot: get_p(&map, "cfrac_spot")?,
 
-            stsp11_long: get_p(&map, "stsp11_long")?,
-            stsp11_lat: get_p(&map, "stsp11_lat")?,
-            stsp11_fwhm: get_p(&map, "stsp11_fwhm")?,
-            stsp11_tcen: get_p(&map, "stsp11_tcen")?,
+            stsp11_long: get_p(&map, "stsp11_long").unwrap_or(Pparam::default()),
+            stsp11_lat: get_p(&map, "stsp11_lat").unwrap_or(Pparam::default()),
+            stsp11_fwhm: get_p(&map, "stsp11_fwhm").unwrap_or(Pparam::default()),
+            stsp11_tcen: get_p(&map, "stsp11_tcen").unwrap_or(Pparam::default()),
 
-            stsp12_long: get_p(&map, "stsp12_long")?,
-            stsp12_lat: get_p(&map, "stsp12_lat")?,
-            stsp12_fwhm: get_p(&map, "stsp12_fwhm")?,
-            stsp12_tcen: get_p(&map, "stsp12_tcen")?,
+            stsp12_long: get_p(&map, "stsp12_long").unwrap_or(Pparam::default()),
+            stsp12_lat: get_p(&map, "stsp12_lat").unwrap_or(Pparam::default()),
+            stsp12_fwhm: get_p(&map, "stsp12_fwhm").unwrap_or(Pparam::default()),
+            stsp12_tcen: get_p(&map, "stsp12_tcen").unwrap_or(Pparam::default()),
 
-            stsp13_long: get_p(&map, "stsp13_long")?,
-            stsp13_lat: get_p(&map, "stsp13_lat")?,
-            stsp13_fwhm: get_p(&map, "stsp13_fwhm")?,
-            stsp13_tcen: get_p(&map, "stsp13_tcen")?,
+            stsp13_long: get_p(&map, "stsp13_long").unwrap_or(Pparam::default()),
+            stsp13_lat: get_p(&map, "stsp13_lat").unwrap_or(Pparam::default()),
+            stsp13_fwhm: get_p(&map, "stsp13_fwhm").unwrap_or(Pparam::default()),
+            stsp13_tcen: get_p(&map, "stsp13_tcen").unwrap_or(Pparam::default()),
 
-            stsp21_long: get_p(&map, "stsp21_long")?,
-            stsp21_lat: get_p(&map, "stsp21_lat")?,
-            stsp21_fwhm: get_p(&map, "stsp21_fwhm")?,
-            stsp21_tcen: get_p(&map, "stsp21_tcen")?,
+            stsp21_long: get_p(&map, "stsp21_long").unwrap_or(Pparam::default()),
+            stsp21_lat: get_p(&map, "stsp21_lat").unwrap_or(Pparam::default()),
+            stsp21_fwhm: get_p(&map, "stsp21_fwhm").unwrap_or(Pparam::default()),
+            stsp21_tcen: get_p(&map, "stsp21_tcen").unwrap_or(Pparam::default()),
 
-            stsp22_long: get_p(&map, "stsp22_long")?,
-            stsp22_lat: get_p(&map, "stsp22_lat")?,
-            stsp22_fwhm: get_p(&map, "stsp22_fwhm")?,
-            stsp22_tcen: get_p(&map, "stsp22_tcen")?,
+            stsp22_long: get_p(&map, "stsp22_long").unwrap_or(Pparam::default()),
+            stsp22_lat: get_p(&map, "stsp22_lat").unwrap_or(Pparam::default()),
+            stsp22_fwhm: get_p(&map, "stsp22_fwhm").unwrap_or(Pparam::default()),
+            stsp22_tcen: get_p(&map, "stsp22_tcen").unwrap_or(Pparam::default()),
 
-            uesp_long1: get_p(&map, "uesp_long1")?,
-            uesp_long2: get_p(&map, "uesp_long2")?,
-            uesp_lathw: get_p(&map, "uesp_lathw")?,
-            uesp_taper: get_p(&map, "uesp_taper")?,
-            uesp_temp: get_p(&map, "uesp_temp")?,
+            uesp_long1: get_p(&map, "uesp_long1").unwrap_or(Pparam::default()),
+            uesp_long2: get_p(&map, "uesp_long2").unwrap_or(Pparam::default()),
+            uesp_lathw: get_p(&map, "uesp_lathw").unwrap_or(Pparam::default()),
+            uesp_taper: get_p(&map, "uesp_taper").unwrap_or(Pparam::default()),
+            uesp_temp: get_p(&map, "uesp_temp").unwrap_or(Pparam::default()),
             
             // Scalars
             delta_phase: get_f64(&map, "delta_phase")?,
