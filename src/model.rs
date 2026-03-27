@@ -3,7 +3,6 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
 use std::{f64::consts::PI, str::FromStr};
-use crate::vec3::Vec3;
 
 
 #[derive(Debug)]
@@ -39,10 +38,12 @@ fn parse_entry(line: &str) -> Option<(String, Entry)> {
     }
 }
 
+
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
+
 
 fn load_entries(path: &str) -> Result<HashMap<String, Entry>, String> {
     let mut map = HashMap::new();
@@ -56,12 +57,14 @@ fn load_entries(path: &str) -> Result<HashMap<String, Entry>, String> {
     Ok(map)
 }
 
+
 fn get_p(map: &HashMap<String, Entry>, k: &str) -> Result<Pparam, String> {
     match map.get(k) {
         Some(Entry::Param(p)) => Ok(*p),
         _ => Err(format!("missing Pparam: {}", k)),
     }
 }
+
 
 fn get_f64(map: &HashMap<String, Entry>, k: &str) -> Result<f64, String> {
     match map.get(k) {
@@ -70,12 +73,14 @@ fn get_f64(map: &HashMap<String, Entry>, k: &str) -> Result<f64, String> {
     }
 }
 
+
 fn get_u32(map: &HashMap<String, Entry>, k: &str) -> Result<u32, String> {
     match map.get(k) {
         Some(Entry::Scalar(v)) => v.parse().map_err(|_| format!("bad u32: {}", k)),
         _ => Err(format!("missing u32: {}", k)),
     }
 }
+
 
 fn get_bool(map: &HashMap<String, Entry>, k: &str) -> Result<bool, String> {
     match map.get(k) {
@@ -88,6 +93,7 @@ fn get_bool(map: &HashMap<String, Entry>, k: &str) -> Result<bool, String> {
     }
 }
 
+
 fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
     match map.get(k) {
         Some(Entry::Scalar(v)) => match v.as_str() {
@@ -98,7 +104,6 @@ fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
         _ => Err(format!("missing LDCType: {}", k)),
     }
 }
-
 
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -190,58 +195,6 @@ impl Default for LDC {
     }
 }
 
-
-pub type Etype = Vec<(f64, f64)>;
-
-
-#[derive(Clone, Debug)]
-pub struct Point {
-    pub position: Vec3,
-    pub direction: Vec3,
-    pub area: f32,
-    pub gravity: f32,
-    pub eclipse: Etype,
-    pub flux: f32,
-}
-
-impl Point {
-    pub fn new(position: Vec3, direction: Vec3, area: f64, gravity: f64, eclipse: Etype) -> Self {
-        Self {
-            position,
-            direction,
-            area: area as f32,
-            gravity: gravity as f32,
-            eclipse,
-            flux: 0.0,
-        }
-    }
-
-    pub fn set_flux(&mut self, flux: f32) -> () {
-        self.flux = flux;
-    }
-
-    pub fn is_visible(&self, phase: f64) -> bool {
-        let phi: f64 = phase - phase.floor();
-        for &(p1, p2) in &self.eclipse {
-            if (phi >= p1 && phi <= p2) || phi <= p2 - 1.0 {
-                return false
-            }
-        }
-        true
-    }
-}
-
-impl Default for Point {
-    fn default() -> Self {
-        Self::new(
-            Vec3::new(0.0, 0.0, 0.0),
-            Vec3::new(0.0, 0.0, 0.0),
-            0.0,
-            0.0,
-            vec![(0.0, 0.0)],
-            )
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pparam {

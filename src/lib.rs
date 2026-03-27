@@ -1,18 +1,19 @@
 use pyo3::prelude::*;
 
-mod model;
-mod vec3;
-mod roche;
-mod set_star_grid;
-mod set_star_continuum;
-mod set_disc_grid;
-mod set_disc_continuum;
-mod set_bright_spot_grid;
-mod comp_light;
-mod constants;
-mod comp_gravity;
-mod comp_radius;
-mod binary_model;
+pub mod model;
+pub mod numface;
+pub mod set_star_grid;
+pub mod set_star_continuum;
+pub mod set_disc_grid;
+pub mod set_disc_continuum;
+pub mod set_bright_spot_grid;
+pub mod ginterp;
+pub mod comp_light;
+pub mod constants;
+pub mod comp_gravity;
+pub mod comp_radius;
+pub mod binary_model;
+
 
 #[pymodule]
 fn lroche(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {

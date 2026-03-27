@@ -1,11 +1,26 @@
 use rayon::prelude::*;
 use std::panic;
 use std::f64::consts::{PI, TAU, FRAC_PI_2};
-use crate::model::{Point, Model, Etype};
-use crate::roche::{Xy, Star, RocheContext};
-use crate::vec3::Vec3;
-use crate::roche;
+use crate::model::Model;
+use crate::numface::numface;
+use rust_roche::{self, Vec3, Star, RocheContext, Etype, Point};
 use crate::constants;
+
+
+pub struct Xy {
+    pub x: f64,
+    pub y: f64,
+}
+
+
+pub fn envelope(rangle: f64, lambda: f64, r1: f64) -> Xy {
+    let (sini, cosi) = rangle.sin_cos();
+    let (sinl, cosl) = lambda.sin_cos();
+    let norm: f64 = (cosi*cosi + sini*sini*cosl*cosl).sqrt();
+    Xy { x: (sinl + r1*cosi*sinl/norm), y: (-cosi*cosl - r1*cosl/norm) }
+}
+
+
 
 
 pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
@@ -46,14 +61,14 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
     let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
     let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value);
 
-    let rl1 = roche_context1.xl1;
+    let rl1 = roche_context1.x_l1;
     if r1 < 0.0 {
         r1 = rl1;
     } else if r1 > rl1 {
         panic!("set_star_grid: the primary star is larger than its Roche lobe!");
     }
 
-    let rl2 = 1.0 - roche_context2.xl1;
+    let rl2 = 1.0 - roche_context2.x_l1;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
@@ -117,7 +132,7 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
             while lhi > llo + 1.0e-7 {
 
                 let lmid: f64 = (llo+lhi)/2.0;
-                xy = roche::envelope(rangle, lmid, r1);
+                xy = envelope(rangle, lmid, r1);
                 if xy.x*xy.x + xy.y*xy.y < r2*r2 {
                     llo = lmid;
                 } else {
@@ -151,7 +166,7 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
     }
 
     // Compute number of faces needed
-    let nface: u32 = roche::numface(nlat, infill, thelo, thehi, nlatfill, nlngfill);
+    let nface: u32 = numface(nlat, infill, thelo, thehi, nlatfill, nlngfill);
 
     // Generate arrays over the star's face
     let mut star_grid: Vec<Point> = Vec::with_capacity(nface as usize);
@@ -319,10 +334,10 @@ pub fn add_faces(
             if eclipse &&
                 ((star == Star::Primary &&
                 ((roche2 && roche_context2.ingress_egress(ffac2, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-                (!roche2 && roche::sphere_eclipse(cosi, sini, &posn, &cofm2, r2, &mut ingress, &mut egress, &mut lam1, &mut lam2)))) ||
+                (!roche2 && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm2, r2, &mut ingress, &mut egress, &mut lam1, &mut lam2)))) ||
                 (star == Star::Secondary &&
                 ((roche1 && roche_context1.ingress_egress(ffac1, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-                (!roche1 && roche::sphere_eclipse(cosi, sini, &posn, &cofm1, r1, &mut ingress, &mut egress, &mut lam1, &mut lam2))))) {
+                (!roche1 && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm1, r1, &mut ingress, &mut egress, &mut lam1, &mut lam2))))) {
 
                     eclipses.push((ingress, egress));
 
@@ -357,323 +372,323 @@ pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64
     let mut egress: f64 = 0.0;
     // let mut eclipses = Etype::new();
     if (roche && roche_context.ingress_egress(ffac, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-        (!roche && roche::sphere_eclipse(cosi, sini, &posn, &cofm, r, &mut ingress, &mut egress, &mut lam1, &mut lam2)) {
+        (!roche && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm, r, &mut ingress, &mut egress, &mut lam1, &mut lam2)) {
         eclipses.push((ingress, egress));
         }
 }
 
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-// This enumerates the 5 possible outcomes of the LOSC intersection with a circle.
-pub enum Circle {
-    // Line of sight cone starts at or above the circle of interest
-    Above,
-    // Line of sight circle is everywhere inside circle of interest
-    Inside,
-    // Line of sight circle is everywhere outside circle of interest
-    Outside,
-    // Line of sight circle is separated from the circle of interest
-    Separate,
-    // Line of sight circle cone intersects the circle of interest
-    Crossing,
-}
+// #[derive(Debug, PartialEq, Eq, Clone, Copy)]
+// // This enumerates the 5 possible outcomes of the LOSC intersection with a circle.
+// pub enum Circle {
+//     // Line of sight cone starts at or above the circle of interest
+//     Above,
+//     // Line of sight circle is everywhere inside circle of interest
+//     Inside,
+//     // Line of sight circle is everywhere outside circle of interest
+//     Outside,
+//     // Line of sight circle is separated from the circle of interest
+//     Separate,
+//     // Line of sight circle cone intersects the circle of interest
+//     Crossing,
+// }
 
 
-pub fn disc_eclipse(iangle: f64, rdisc1: f64, rdisc2: f64, beta: f64, height: f64, r: &Vec3) -> Etype {
+// pub fn disc_eclipse(iangle: f64, rdisc1: f64, rdisc2: f64, beta: f64, height: f64, r: &Vec3) -> Etype {
 
-    if beta < 1.0 {
-        panic!("beta must be >= 1");
-    }
+//     if beta < 1.0 {
+//         panic!("beta must be >= 1");
+//     }
 
-    // Compute and store cosine and sine of inclination if need be.
-    // let mut iangle_old: f64 = -1.0e30;
-    let sini: f64;
-    let cosi: f64;
-    // if iangle != iangle_old {
-        // iangle_old = iangle;
-    (sini, cosi) = iangle.to_radians().sin_cos();
-    // }
+//     // Compute and store cosine and sine of inclination if need be.
+//     // let mut iangle_old: f64 = -1.0e30;
+//     let sini: f64;
+//     let cosi: f64;
+//     // if iangle != iangle_old {
+//         // iangle_old = iangle;
+//     (sini, cosi) = iangle.to_radians().sin_cos();
+//     // }
 
-    let mut temp = Etype::new();
+//     let mut temp = Etype::new();
 
-    // Compute height of disc at outer boundary
-    let h_out: f64 = height * rdisc2.powf(beta);
+//     // Compute height of disc at outer boundary
+//     let h_out: f64 = height * rdisc2.powf(beta);
 
-    // Deal with points too high ever to be eclipsed whatever the inclination
-    if r.z >= h_out {
-        return temp;
-    }
+//     // Deal with points too high ever to be eclipsed whatever the inclination
+//     if r.z >= h_out {
+//         return temp;
+//     }
 
-    // Special case of exactly edge-on, only curved outer edge matters.
-    if cosi == 0.0 {
-        if r.z.abs() < h_out {
-            let rxy: f64 = (r.x*r.x + r.y*r.y).sqrt();
-            if rxy <= rdisc2 {
-                temp.push((0.0, 1.0));
-            }
-        }
-        return temp;
-    }
+//     // Special case of exactly edge-on, only curved outer edge matters.
+//     if cosi == 0.0 {
+//         if r.z.abs() < h_out {
+//             let rxy: f64 = (r.x*r.x + r.y*r.y).sqrt();
+//             if rxy <= rdisc2 {
+//                 temp.push((0.0, 1.0));
+//             }
+//         }
+//         return temp;
+//     }
 
-    // Work out distance from axis
-    let rxy: f64 = (r.x*r.x + r.y*r.y).sqrt();
+//     // Work out distance from axis
+//     let rxy: f64 = (r.x*r.x + r.y*r.y).sqrt();
 
-    if rdisc1 < rxy && rxy < rdisc2 && r.z.abs() < height*rxy.powf(beta) {
-        // Point is inside disc and so is eclipsed
-        temp.push((0.0, 1.1));
-        return temp;
-    }
+//     if rdisc1 < rxy && rxy < rdisc2 && r.z.abs() < height*rxy.powf(beta) {
+//         // Point is inside disc and so is eclipsed
+//         temp.push((0.0, 1.1));
+//         return temp;
+//     }
 
-    let tani: f64 = sini/cosi;
-    let mut result: Circle;
+//     let tani: f64 = sini/cosi;
+//     let mut result: Circle;
 
-    let mut phase: f64 = 0.0;
-    let mut ingress: f64;
-    let mut egress: f64;
+//     let mut phase: f64 = 0.0;
+//     let mut ingress: f64;
+//     let mut egress: f64;
 
-    if rxy < rdisc2 && r.z >= height*rdisc1.max(rxy).powf(beta) {
+//     if rxy < rdisc2 && r.z >= height*rdisc1.max(rxy).powf(beta) {
 
-        // Point is in approximately conical region above the disc. Just need to check whether
-        // it is not occulted by the edge of the disc
-        result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
+//         // Point is in approximately conical region above the disc. Just need to check whether
+//         // it is not occulted by the edge of the disc
+//         result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
 
-        if result == Circle::Outside {
-            // point will be occulted by the disc edge at all phases
-            temp.push((0.0, 1.1));
-        } else if result == Circle::Crossing {
-            // point partially occulted by disc edge; work out phases
-            let phi0: f64 = r.y.atan2(r.x)/TAU;
-            ingress = phi0 + phase;
-            ingress -= ingress.floor();
-            egress = ingress + 1.0 - 2.0*phase;
-            temp.push((ingress, egress));
-        }
-        return temp;
-    }
+//         if result == Circle::Outside {
+//             // point will be occulted by the disc edge at all phases
+//             temp.push((0.0, 1.1));
+//         } else if result == Circle::Crossing {
+//             // point partially occulted by disc edge; work out phases
+//             let phi0: f64 = r.y.atan2(r.x)/TAU;
+//             ingress = phi0 + phase;
+//             ingress -= ingress.floor();
+//             egress = ingress + 1.0 - 2.0*phase;
+//             temp.push((ingress, egress));
+//         }
+//         return temp;
+//     }
 
-    // Compute the radius of circle formed by LOSC in the plane of 
-    // the lower outer rim of the disc
-    let rcone_lo: f64 = 0.0_f64.max(tani*(-h_out - r.z));
+//     // Compute the radius of circle formed by LOSC in the plane of 
+//     // the lower outer rim of the disc
+//     let rcone_lo: f64 = 0.0_f64.max(tani*(-h_out - r.z));
 
-    // Circle encloses rim, so no intersection
-    if rcone_lo >= rxy + rdisc2 {
-        return temp;
-    }
+//     // Circle encloses rim, so no intersection
+//     if rcone_lo >= rxy + rdisc2 {
+//         return temp;
+//     }
 
-    // Compute the radius of circle formed by LOSC in the plane of 
-    // the upper outer rim of the disc
-    let rcone_hi: f64 = tani*(h_out - r.z);
+//     // Compute the radius of circle formed by LOSC in the plane of 
+//     // the upper outer rim of the disc
+//     let rcone_hi: f64 = tani*(h_out - r.z);
 
-    // Circle disjoint from rim, so no intersection
-    if rxy >= rcone_hi + rdisc2 {
-        return temp;
-    }
+//     // Circle disjoint from rim, so no intersection
+//     if rxy >= rcone_hi + rdisc2 {
+//         return temp;
+//     }
 
-    // For the moment we pretend that the disc has no hole at its centre, so
-    // that we are simply interested in the phases over which eclipse occurs. 
-    // At this point we are guaranteed that this will happen. All events are
-    // symmetrically located around a phase defined by x and y only which will
-    // be calculated at the end. We therefore just find the half range which
-    // is called 'eclipse_phase' below.
+//     // For the moment we pretend that the disc has no hole at its centre, so
+//     // that we are simply interested in the phases over which eclipse occurs. 
+//     // At this point we are guaranteed that this will happen. All events are
+//     // symmetrically located around a phase defined by x and y only which will
+//     // be calculated at the end. We therefore just find the half range which
+//     // is called 'eclipse_phase' below.
 
-    let eclipse_phase: f64;
-    if rxy + rcone_lo <= rdisc2 {
+//     let eclipse_phase: f64;
+//     if rxy + rcone_lo <= rdisc2 {
 
-        // Cone swept out by line of sight always inside lower face so total eclipse
-        eclipse_phase = 0.5;
-    } else if rxy <= rdisc2 {
+//         // Cone swept out by line of sight always inside lower face so total eclipse
+//         eclipse_phase = 0.5;
+//     } else if rxy <= rdisc2 {
 
-        // Points that project close to the z axis which are only 
-        // partially obscured by the disc hovering above them.
-        // this means they must be below -HOUT    
-        eclipse_phase = cut_phase(rxy, rcone_lo, rdisc2);
-    } else {
+//         // Points that project close to the z axis which are only 
+//         // partially obscured by the disc hovering above them.
+//         // this means they must be below -HOUT    
+//         eclipse_phase = cut_phase(rxy, rcone_lo, rdisc2);
+//     } else {
 
-        // Points further from the z axis than the outer rim of the disc that
-        // will be eclipsed.
-        if rcone_hi*rcone_hi + rdisc2*rdisc2 >= rxy*rxy
-           && rcone_lo*rcone_lo + rdisc2*rdisc2 <= rxy*rxy {
+//         // Points further from the z axis than the outer rim of the disc that
+//         // will be eclipsed.
+//         if rcone_hi*rcone_hi + rdisc2*rdisc2 >= rxy*rxy
+//            && rcone_lo*rcone_lo + rdisc2*rdisc2 <= rxy*rxy {
 
-            // In this case it is the curved outer disc rim that sets the limit
-            eclipse_phase = (rdisc2/rxy).asin()/TAU;
-        } else if rcone_hi*rcone_hi + rdisc2*rdisc2 < rxy*rxy {
+//             // In this case it is the curved outer disc rim that sets the limit
+//             eclipse_phase = (rdisc2/rxy).asin()/TAU;
+//         } else if rcone_hi*rcone_hi + rdisc2*rdisc2 < rxy*rxy {
 
-            // In this case it is upper outer rim that sets the limit
-            eclipse_phase = cut_phase(rxy, rcone_hi, rdisc2);
-        } else {
+//             // In this case it is upper outer rim that sets the limit
+//             eclipse_phase = cut_phase(rxy, rcone_hi, rdisc2);
+//         } else {
 
-            // In this case it is lower outer rim that sets the limit
-            eclipse_phase = cut_phase(rxy, rcone_lo, rdisc2);
-        }
-    }
+//             // In this case it is lower outer rim that sets the limit
+//             eclipse_phase = cut_phase(rxy, rcone_lo, rdisc2);
+//         }
+//     }
 
-    // At this point we have covered all cases for the eclipse, whilst ignoring the
-    // possibility of seeing the point through the hole in the middle of the disc.
-    // Now let's calculate the 'appear_phase' if any.
+//     // At this point we have covered all cases for the eclipse, whilst ignoring the
+//     // possibility of seeing the point through the hole in the middle of the disc.
+//     // Now let's calculate the 'appear_phase' if any.
 
-    // First compute height of disc at inner boundary
-    let h_in: f64 = height*rdisc1.powf(beta);
+//     // First compute height of disc at inner boundary
+//     let h_in: f64 = height*rdisc1.powf(beta);
 
-    let mut appear_phase: f64 = -1.0;
+//     let mut appear_phase: f64 = -1.0;
 
-    if r.z < -h_out {
-        // In this case the LOSC has to run through 4 circles which are the upper and
-        // lower outer and inner rims.
+//     if r.z < -h_out {
+//         // In this case the LOSC has to run through 4 circles which are the upper and
+//         // lower outer and inner rims.
 
-        // First, the lower outer rim
-        result = circle_eclipse(rxy, r.z, -h_out, rdisc2, tani, &mut phase);
-        if result == Circle::Inside {
-            appear_phase = 0.5;
-        } else if result == Circle::Crossing {
-            appear_phase = appear_phase.min(phase);
-        }
+//         // First, the lower outer rim
+//         result = circle_eclipse(rxy, r.z, -h_out, rdisc2, tani, &mut phase);
+//         if result == Circle::Inside {
+//             appear_phase = 0.5;
+//         } else if result == Circle::Crossing {
+//             appear_phase = appear_phase.min(phase);
+//         }
 
-        // Second, the lower inner rim
-        if appear_phase > 0.0 {
-            result = circle_eclipse(rxy, r.z, -h_in, rdisc1, tani, &mut phase);
-            if result == Circle::Crossing {
-                appear_phase = appear_phase.min(phase);
-            } else if result != Circle::Inside {
-                appear_phase = -1.0;
-            }
-        }
+//         // Second, the lower inner rim
+//         if appear_phase > 0.0 {
+//             result = circle_eclipse(rxy, r.z, -h_in, rdisc1, tani, &mut phase);
+//             if result == Circle::Crossing {
+//                 appear_phase = appear_phase.min(phase);
+//             } else if result != Circle::Inside {
+//                 appear_phase = -1.0;
+//             }
+//         }
 
-        // Fourth, the upper outer rim
-        if appear_phase > 0.0 {
-            result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
-            if result == Circle::Crossing {
-                appear_phase = appear_phase.min(phase);
-            } else if result != Circle::Inside {
-                appear_phase = -1.0;
-            }
-        }
-    } else if rxy < rdisc1 {
+//         // Fourth, the upper outer rim
+//         if appear_phase > 0.0 {
+//             result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
+//             if result == Circle::Crossing {
+//                 appear_phase = appear_phase.min(phase);
+//             } else if result != Circle::Inside {
+//                 appear_phase = -1.0;
+//             }
+//         }
+//     } else if rxy < rdisc1 {
 
-        if r.z < -h_in {
+//         if r.z < -h_in {
 
-            // Points hovering around underside of disc. Have to consider just three circles
+//             // Points hovering around underside of disc. Have to consider just three circles
       
-            // First, the lower inner rim
-            result = circle_eclipse(rxy, r.z, -h_in, rdisc1, tani, &mut phase);
-            if result == Circle::Inside {
-                appear_phase = 0.5;
-            } else if result == Circle::Crossing {
-                appear_phase = phase;
-            }
+//             // First, the lower inner rim
+//             result = circle_eclipse(rxy, r.z, -h_in, rdisc1, tani, &mut phase);
+//             if result == Circle::Inside {
+//                 appear_phase = 0.5;
+//             } else if result == Circle::Crossing {
+//                 appear_phase = phase;
+//             }
 
-            // Second, the upper inner rim
-            if appear_phase > 0.0 {
-                result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
-                if result == Circle::Crossing {
-                    appear_phase = appear_phase.min(phase);
-                } else if result != Circle::Inside {
-                    appear_phase = -1.0;
-                }
-            }
+//             // Second, the upper inner rim
+//             if appear_phase > 0.0 {
+//                 result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
+//                 if result == Circle::Crossing {
+//                     appear_phase = appear_phase.min(phase);
+//                 } else if result != Circle::Inside {
+//                     appear_phase = -1.0;
+//                 }
+//             }
 
-            // Third, the upper outer rim
-            if appear_phase > 0.0 {
-                result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
-                if result == Circle::Crossing {
-                    appear_phase = appear_phase.min(phase);
-                } else if result != Circle::Inside {
-                    appear_phase = -1.0;
-                }
-            }
-        } else if r.z < h_in {
+//             // Third, the upper outer rim
+//             if appear_phase > 0.0 {
+//                 result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
+//                 if result == Circle::Crossing {
+//                     appear_phase = appear_phase.min(phase);
+//                 } else if result != Circle::Inside {
+//                     appear_phase = -1.0;
+//                 }
+//             }
+//         } else if r.z < h_in {
 
-            // Points inside hole in middle of disc. Have to consider just two circles
+//             // Points inside hole in middle of disc. Have to consider just two circles
 
-            // First, the upper inner rim
-            result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
-            if result == Circle::Inside {
-                appear_phase = 0.0;
-            } else if result == Circle::Crossing {
-                appear_phase = phase;
-            }
+//             // First, the upper inner rim
+//             result = circle_eclipse(rxy, r.z, h_in, rdisc1, tani, &mut phase);
+//             if result == Circle::Inside {
+//                 appear_phase = 0.0;
+//             } else if result == Circle::Crossing {
+//                 appear_phase = phase;
+//             }
 
-            // Second, the upper outer rim
-            if appear_phase > 0.0 {
-                result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
-                if result == Circle::Crossing {
-                    appear_phase = appear_phase.min(phase);
-                } else if result != Circle::Inside {
-                    appear_phase = -1.0;
-                }
-            }
-        }
-    }
+//             // Second, the upper outer rim
+//             if appear_phase > 0.0 {
+//                 result = circle_eclipse(rxy, r.z, h_out, rdisc2, tani, &mut phase);
+//                 if result == Circle::Crossing {
+//                     appear_phase = appear_phase.min(phase);
+//                 } else if result != Circle::Inside {
+//                     appear_phase = -1.0;
+//                 }
+//             }
+//         }
+//     }
 
-    // Here is the central phase
-    let phi0: f64 = r.y.atan2(-r.x/TAU);
+//     // Here is the central phase
+//     let phi0: f64 = r.y.atan2(-r.x/TAU);
 
-    if appear_phase <= 0.0 {
-        ingress = phi0 - eclipse_phase;
-        ingress -= ingress.floor();
-        egress = ingress + 2.0*eclipse_phase;
-        temp.push((ingress, egress));
-    } else if appear_phase < eclipse_phase {
-        ingress = phi0 - eclipse_phase;
-        ingress -= ingress.floor();
-        egress = ingress + (eclipse_phase - appear_phase);
-        temp.push((ingress, egress));
-        ingress = phi0 + appear_phase;
-        ingress -= ingress.floor();
-        egress = ingress + (eclipse_phase - appear_phase);
-        temp.push((ingress, egress));
-    }
+//     if appear_phase <= 0.0 {
+//         ingress = phi0 - eclipse_phase;
+//         ingress -= ingress.floor();
+//         egress = ingress + 2.0*eclipse_phase;
+//         temp.push((ingress, egress));
+//     } else if appear_phase < eclipse_phase {
+//         ingress = phi0 - eclipse_phase;
+//         ingress -= ingress.floor();
+//         egress = ingress + (eclipse_phase - appear_phase);
+//         temp.push((ingress, egress));
+//         ingress = phi0 + appear_phase;
+//         ingress -= ingress.floor();
+//         egress = ingress + (eclipse_phase - appear_phase);
+//         temp.push((ingress, egress));
+//     }
 
-    return temp
+//     return temp
 
-}
-
-
-pub fn circle_eclipse(rxy: f64, z: f64, zcirc: f64, radius: f64, tani: f64, phase: &mut f64) -> Circle {
-
-    // point above circle
-    if z >= zcirc {
-        return Circle::Above;
-    }
-    let rcone: f64 = tani*(zcirc - z);
-
-    // line-of-sight always outside the circle
-    if rcone >= rxy + radius {
-        return Circle::Outside;
-    } 
-
-    // line-of-sight circle separate from the circle
-    if rxy >= rcone + radius {
-        return Circle::Separate;
-    }
-
-    // line-of-sight always outside the circle
-    if rxy + rcone <= radius {
-        return Circle::Inside;
-    }
-
-    // crossing case
-    *phase = cut_phase(rxy, rcone, radius);
-
-    Circle::Crossing
-
-}
+// }
 
 
-pub fn cut_phase(rxy: f64, rcone: f64, radius: f64) -> f64 {
+// pub fn circle_eclipse(rxy: f64, z: f64, zcirc: f64, radius: f64, tani: f64, phase: &mut f64) -> Circle {
 
-    // Temporary checks
-    if rxy + rcone <= radius {
-        panic!("rxy + rcone <= radius");
-    }
-    if rxy >= radius + rcone {
-        panic!("rxy >= radius + rcone");
-    }
-    if rcone >= radius + rxy {
-        panic!("rcone >= radius + rxy");
-    }
+//     // point above circle
+//     if z >= zcirc {
+//         return Circle::Above;
+//     }
+//     let rcone: f64 = tani*(zcirc - z);
 
-    ((rxy*rxy + rcone*rcone - radius*radius)/(2.0*rcone*rxy)).acos()/TAU
-}
+//     // line-of-sight always outside the circle
+//     if rcone >= rxy + radius {
+//         return Circle::Outside;
+//     } 
+
+//     // line-of-sight circle separate from the circle
+//     if rxy >= rcone + radius {
+//         return Circle::Separate;
+//     }
+
+//     // line-of-sight always outside the circle
+//     if rxy + rcone <= radius {
+//         return Circle::Inside;
+//     }
+
+//     // crossing case
+//     *phase = cut_phase(rxy, rcone, radius);
+
+//     Circle::Crossing
+
+// }
+
+
+// pub fn cut_phase(rxy: f64, rcone: f64, radius: f64) -> f64 {
+
+//     // Temporary checks
+//     if rxy + rcone <= radius {
+//         panic!("rxy + rcone <= radius");
+//     }
+//     if rxy >= radius + rcone {
+//         panic!("rxy >= radius + rcone");
+//     }
+//     if rcone >= radius + rxy {
+//         panic!("rcone >= radius + rxy");
+//     }
+
+//     ((rxy*rxy + rcone*rcone - radius*radius)/(2.0*rcone*rxy)).acos()/TAU
+// }
 
 
 struct BandGeom {

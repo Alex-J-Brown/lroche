@@ -1,7 +1,6 @@
-use crate::roche::{RocheContext, Star};
-use crate::model::{Model, Point};
+use rust_roche::{RocheContext, Star, Vec3, Point};
+use crate::model::Model;
 use crate::constants::DAY;
-use crate::vec3::Vec3;
 use std::f64::consts::TAU;
 
 // 
@@ -25,7 +24,7 @@ pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
     // radius stuff
     let (r1, _) = model.get_r1r2();
     let rochecontext1: RocheContext = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
-    let rl1: f64 = rochecontext1.xl1;
+    let rl1: f64 = rochecontext1.x_l1;
 
     // calculate the reference gravity in CGS units
     if model.roche1 {
@@ -81,7 +80,7 @@ pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> f64 {
     // radius stuff
     let (_, mut r2) = model.get_r1r2();
     let rochecontext2: RocheContext = RocheContext::new(model.q.value, Star::Secondary, model.spin1.value);
-    let rl2: f64 = 1.0 - rochecontext2.xl1;
+    let rl2: f64 = 1.0 - rochecontext2.x_l1;
     if model.r2.value < 0.0 {
         r2 = rl2;
     }

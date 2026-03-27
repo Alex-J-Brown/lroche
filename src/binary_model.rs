@@ -4,17 +4,18 @@ use rayon::prelude::*;
 use pyo3::prelude::*;
 use numpy::{PyReadonlyArray1, IntoPyArray, PyArray1};
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
-use crate::comp_gravity::{comp_gravity1, comp_gravity2};
+use rust_roche::{self, Star, Etype, Point, disc_eclipse};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
+use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_radius::comp_radius;
 use crate::constants::{C, DAY};
-use crate::roche::{self, Ginterp, Star, xl12};
-use crate::model::{Entry, Etype, LDC, Model, Point};
-use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
-use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
-use crate::set_bright_spot_grid::set_bright_spot_grid;
+use crate::ginterp::Ginterp;
+use crate::model::{Entry, LDC, Model};
+use crate::set_star_grid::set_star_grid;
 use crate::set_star_continuum::set_star_continuum;
-use crate::set_star_grid::{disc_eclipse, set_star_grid};
+use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
+use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
+use crate::set_bright_spot_grid::set_bright_spot_grid;
 
 
 #[pyclass]
@@ -38,16 +39,22 @@ pub struct LightCurve {
     pub total: Py<PyArray1<f64>>,
 
     #[pyo3(get)]
-    pub logg1: Py<PyFloat>,
+    pub logg1: f64,
 
     #[pyo3(get)]
-    pub logg2: Py<PyFloat>,
+    pub logg2: f64,
 
     #[pyo3(get)]
-    pub rva1: Py<PyFloat>,
+    pub rva1: f64,
 
     #[pyo3(get)]
-    pub rva2: Py<PyFloat>,
+    pub rva2: f64,
+
+    #[pyo3(get)]
+    pub chi2: Option<f64>,
+
+    #[pyo3(get)]
+    pub log_prob: Option<f64>,
 
 }
 
@@ -68,6 +75,7 @@ pub struct BinaryModel {
 #[pymethods]
 impl BinaryModel {
     
+
     #[new]
     pub fn new(dict: Bound<'_, PyDict>) -> PyResult<Self> {
 
@@ -80,7 +88,7 @@ impl BinaryModel {
         let mut star2_coarse_grid: Vec<Point>;
 
         let (r1, mut r2) = model.get_r1r2();
-        let rl2: f64 = 1.0 - xl12(model.q.value, model.spin2.value);
+        let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
         if r2 < 0.0 {
             r2 = rl2;
         } else if r2 > rl2 {
@@ -138,6 +146,7 @@ impl BinaryModel {
         })
     }
 
+
     #[staticmethod]
     pub fn from_file(filename: &str) -> PyResult<Self> {
         let model = Model::from_file(filename)
@@ -148,7 +157,7 @@ impl BinaryModel {
         let mut star2_coarse_grid: Vec<Point>;
 
         let (r1, mut r2) = model.get_r1r2();
-        let rl2: f64 = 1.0 - xl12(model.q.value, model.spin2.value);
+        let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
         if r2 < 0.0 {
             r2 = rl2;
         } else if r2 > rl2 {
@@ -459,7 +468,7 @@ impl BinaryModel {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
 
-        if  flux.is_some() && flux_err.is_some() && autoscale {
+        let (chisq, log_prob) = if flux.is_some() && flux_err.is_some() && autoscale {
             let scale_factor = rescale(flux.unwrap(), flux_err.unwrap(), weight, &total);
             for i in 0..time.len() {
                 star1[i] *= scale_factor;
@@ -469,7 +478,15 @@ impl BinaryModel {
                 bright_spot[i] *= scale_factor;
                 total[i] *= scale_factor;
             }
-        }
+
+            let (chisq, log_prob) = chisq_log_prob(flux.unwrap(), flux_err.unwrap(), weight, &total);
+            (Some(chisq), Some(log_prob))
+        } else {
+            (None, None)
+        };
+            
+
+        
 
         let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid);
         let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid);
@@ -487,10 +504,12 @@ impl BinaryModel {
             disc_edge: disc_edge.into_pyarray(py).unbind(),
             bright_spot: bright_spot.into_pyarray(py).unbind(),
             total: total.into_pyarray(py).unbind(),
-            logg1: logg1.into_pyobject(py).unwrap().unbind(),
-            logg2: logg2.into_pyobject(py).unwrap().unbind(),
-            rva1: rva1.into_pyobject(py).unwrap().unbind(),
-            rva2: rva2.into_pyobject(py).unwrap().unbind()
+            logg1: logg1,
+            logg2: logg2,
+            rva1: rva1,
+            rva2: rva2,
+            chi2: chisq,
+            log_prob: log_prob
         })
 
     }
@@ -580,8 +599,28 @@ pub fn rescale(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flu
     scale
 }
 
+
+pub fn chisq_log_prob(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flux: &[f64]) -> (f64, f64) {
+    let mut chisq_i: f64 = 0.0;
+    let mut chisq_sum: f64 = 0.0;
+    let mut log_prob: f64 = 0.0;
+    for i in 0..flux.len() {
+        if let Some(weight) = weight {
+            if weight[i] > 0.0 {
+                chisq_i = weight[i] * ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
+            }
+        } else {
+            chisq_i = ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
+        }
+        chisq_sum += chisq_i;
+        log_prob += -0.5*(chisq_i + (TAU*flux_err[i]*flux_err[i]).ln())
+    }
+    (chisq_sum, log_prob)
+}
+
+
 #[pyfunction]
 pub fn x_l1(q: Bound<'_, PyFloat>) -> PyResult<f64> {
-    let xl1 = roche::xl1(q.extract::<f64>().unwrap());
+    let xl1 = rust_roche::x_l1(q.extract::<f64>().unwrap());
     Ok(xl1)
 }

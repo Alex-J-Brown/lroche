@@ -1,31 +1,30 @@
 use std::panic;
 use std::f64::consts::{TAU};
-use crate::model::{Point, Model, Etype};
-use crate::roche::{Star, RocheContext};
-use crate::set_star_grid::{self, star_eclipse};
-use crate::vec3::Vec3;
-
-//
-// set_disc_grid sets up the elements needed to define an accretion
-// disc around the primary star in a co-rotating binary system.  For
-// each element set_disc_grid computes the position within the binary,
-// the direction perpendicular to the element, the area of the element
-// and whether it is eclipsed by the stars. The disc is modelled as
-// having a power law variation of height with radius. Elements are
-// only computed for the top surface of the disc. The area calculation
-// ignores the angle of the elements.
-//
-// All numbers assume a separation = 1. The primary star is centred at
-// (0,0,0), the secondary at (1,0,0). The y-axis points in the
-// direction of motion of the secondary star.
-//
-// \param model    the Model
-// \param disc      array representing the disc
-// \exception Exceptions are thrown if the specified radii over-fill the
-// Roche lobes.
-//
+use crate::model::Model;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rust_roche::{self, Star, Vec3, RocheContext, Etype, Point};
+use crate::set_star_grid::star_eclipse;
 
 
+///
+/// set_disc_grid sets up the elements needed to define an accretion
+/// disc around the primary star in a co-rotating binary system.  For
+/// each element set_disc_grid computes the position within the binary,
+/// the direction perpendicular to the element, the area of the element
+/// and whether it is eclipsed by the stars. The disc is modelled as
+/// having a power law variation of height with radius. Elements are
+/// only computed for the top surface of the disc. The area calculation
+/// ignores the angle of the elements.
+///
+/// All numbers assume a separation = 1. The primary star is centred at
+/// (0,0,0), the secondary at (1,0,0). The y-axis points in the
+/// direction of motion of the secondary star.
+///
+/// \param model    the Model
+/// \param disc      array representing the disc
+/// \exception Exceptions are thrown if the specified radii over-fill the
+/// Roche lobes.
+///
 pub fn set_disc_grid(model: &Model) -> Vec<Point> {
     
     const EFAC: f64 = 1.0000001;
@@ -35,14 +34,14 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
     let roche_context1: RocheContext = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
     let roche_context2: RocheContext = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value);
 
-    let rl1 = roche_context1.xl1;
+    let rl1 = roche_context1.x_l1;
     if r1 < 0.0 {
         r1 = rl1;
     } else if r1 > rl1 {
         panic!("Primary star is larger than its Roche Lobe!");
     }
 
-    let rl2 = 1.0 - roche_context2.xl1;
+    let rl2 = 1.0 - roche_context2.x_l1;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
@@ -75,8 +74,7 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
     // let cofm1 = Vec3::cofm1();
     // let cofm2 = Vec3::cofm2();
 
-    let mut nface: usize = 0;
-    let mut ntheta: usize;
+    // let mut ntheta: usize;
 
     // drrad here introduced to avoid ntheta getting silly if rdisc1 and rdisc2 
     // are close to each other.
@@ -84,98 +82,133 @@ pub fn set_disc_grid(model: &Model) -> Vec<Point> {
     let drad: f64 = (rdisc2 - rdisc1)/model.nrad as f64;
     let drrad: f64 = rdisc2/model.nrad as f64;
 
-    for i in 0..model.nrad {
-        ntheta = (TAU*(rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64)/drrad).ceil() as usize;
-        ntheta = if ntheta > 8 {
-            ntheta
-        } else {
-            8
-        };
-        nface += ntheta;
-    }
+    // for i in 0..model.nrad {
+    //     ntheta = (TAU*(rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64)/drrad).ceil() as usize;
+    //     ntheta = if ntheta > 8 {
+    //         ntheta
+    //     } else {
+    //         8
+    //     };
+    //     nface += ntheta;
+    // }
 
 
-    let mut disc_grid: Vec<Point> = Vec::with_capacity(nface as usize);
-    disc_grid.resize(nface, Point::default());
+    // let mut disc_grid: Vec<Point> = Vec::with_capacity(nface as usize);
+    // disc_grid.resize(nface, Point::default());
 
-    let mut posn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
-    let mut dirn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
-    let mut theta: f64;
-    let mut rad: f64;
-    let mut h: f64;
-    let mut area: f64;
-    let mut sint: f64;
-    let mut cost: f64;
-    let mut tanp: f64;
-    let mut sinp: f64;
-    let mut cosp: f64;
+    // let mut posn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    // let mut dirn: Vec3 = Vec3::new(0.0, 0.0, 0.0);
+    // let mut theta: f64;
+    // let mut rad: f64;
+    // let mut h: f64;
+    // let mut area: f64;
+    // let mut sint: f64;
+    // let mut cost: f64;
+    // let mut tanp: f64;
+    // let mut sinp: f64;
+    // let mut cosp: f64;
 
-    nface = 0;
-    for i in 0..model.nrad {
-        rad = rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64;
-        ntheta = (TAU*rad/drrad).ceil() as usize;
-        ntheta = if ntheta > 8 {
-            ntheta
-        } else {
-            8
-        };
-        h = EFAC*model.height_disc.value *rad.powf(model.beta_disc.value);
-        tanp = model.beta_disc.value * h / rad;
-        cosp = 1.0 / (1.0 + tanp*tanp).sqrt();
-        sinp = tanp * cosp;
+    // nface = 0;
+    // for i in 0..model.nrad {
+    //     rad = rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64;
+    //     ntheta = (TAU*rad/drrad).ceil() as usize;
+    //     ntheta = if ntheta > 8 {
+    //         ntheta
+    //     } else {
+    //         8
+    //     };
+    //     h = EFAC*model.height_disc.value *rad.powf(model.beta_disc.value);
+    //     tanp = model.beta_disc.value * h / rad;
+    //     cosp = 1.0 / (1.0 + tanp*tanp).sqrt();
+    //     sinp = tanp * cosp;
 
-        // NB: no accounting for the angle of the face
-        area    = TAU/ntheta as f64 *rad*drad;
+    //     // NB: no accounting for the angle of the face
+    //     area    = TAU/ntheta as f64 *rad*drad;
 
-        for j in 0..ntheta {
+    //     for j in 0..ntheta {
 
-            theta = TAU*j as f64 /ntheta as f64;
-            (sint, cost) = theta.sin_cos();
-            posn.set(rad*cost, rad*sint, h);
-            dirn.set(-cost*sinp, -sint*sinp, cosp);
+    //         theta = TAU*j as f64 /ntheta as f64;
+    //         (sint, cost) = theta.sin_cos();
+    //         posn.set(rad*cost, rad*sint, h);
+    //         dirn.set(-cost*sinp, -sint*sinp, cosp);
 
-            let mut eclipses: Etype = Etype::new();
-            if model.opaque {
-                eclipses = set_star_grid::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
-            } else {
-                eclipses.clear();
-            }
-            if model.eclipse1 {
-                set_star_grid::star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses)
-            }
-            if model.eclipse2 {
-                set_star_grid::star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses)
-            }
+    //         let mut eclipses: Etype = Etype::new();
+    //         if model.opaque {
+    //             eclipses = rust_roche::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
+    //         } else {
+    //             eclipses.clear();
+    //         }
+    //         if model.eclipse1 {
+    //             set_star_grid::star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses)
+    //         }
+    //         if model.eclipse2 {
+    //             set_star_grid::star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses)
+    //         }
 
-            disc_grid[nface] = Point::new(posn, dirn, area, 1., eclipses);
-            nface += 1;
-        }
-    }
-    disc_grid
+    //         disc_grid[nface] = Point::new(posn, dirn, area, 1., eclipses);
+    //         nface += 1;
+    //     }
+    // }
+    // disc_grid
+
+    let disc_grid: Vec<Point> = (0..model.nrad)
+        .into_par_iter()
+        .flat_map_iter(|i| {
+            let rad = rdisc1 + (rdisc2-rdisc1)*(i as f64 + 0.5)/model.nrad as f64;
+            let ntheta = ((TAU * rad / drrad).ceil() as usize).max(8);
+            let h = EFAC*model.height_disc.value *rad.powf(model.beta_disc.value);
+            let tanp = model.beta_disc.value * h / rad;
+            let cosp = 1.0 / (1.0 + tanp*tanp).sqrt();
+            let sinp = tanp * cosp;
+            // NB: no accounting for the angle of the face
+            let area = TAU/ntheta as f64 *rad*drad;
+
+            (0..ntheta).map(move |j| {
+                let theta = TAU * j as f64 / ntheta as f64;
+                let (sint, cost) = theta.sin_cos();
+                let posn = Vec3::new(rad * cost, rad * sint, h);
+                let dirn = Vec3::new(-cost * sinp, -sint * sinp, cosp);
+
+                let mut eclipses = if model.opaque {
+                    rust_roche::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn)
+                } else {
+                    Etype::new()
+                };
+
+                if model.eclipse1 {
+                    rust_roche::star_eclipse(model.q.value, model.spin1.value, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses)
+                }
+                if model.eclipse2 {
+                    rust_roche::star_eclipse(model.q.value, model.spin2.value, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses)
+                }
+
+                Point::new(posn, dirn, area, 1., eclipses)
+            })
+        }).collect();
+        disc_grid
 }
 
 
-//
-// set_disc_edge sets up the elements needed to define a rim of a
-// cyclindrical accretion disc. The elements are assumed to face
-// radially outwards or inwards depending upon whether it is an outer
-// or inner edge, except for elements on the upper edges of the rim
-// which are set to face upwards to guarantee that they will be
-// displayed unless they are eclipsed.
-//
-// All numbers assume a separation = 1. The primary star is centred at
-// (0,0,0), the secondary at (1,0,0). The y-axis points in the
-// direction of motion of the secondary star.
-//
-//
-// \param mdl       input model
-// \param outer     true for the outer edge, false for the inner edge
-// \param edge      array representing the outer edge
-// \param visial    array representing the outer edge
-// \exception Exceptions are thrown if the specified radii over-fill the
-// Roche lobes.
-//
-
+///
+/// set_disc_edge sets up the elements needed to define a rim of a
+/// cyclindrical accretion disc. The elements are assumed to face
+/// radially outwards or inwards depending upon whether it is an outer
+/// or inner edge, except for elements on the upper edges of the rim
+/// which are set to face upwards to guarantee that they will be
+/// displayed unless they are eclipsed.
+///
+/// All numbers assume a separation = 1. The primary star is centred at
+/// (0,0,0), the secondary at (1,0,0). The y-axis points in the
+/// direction of motion of the secondary star.
+///
+///
+/// \param mdl       input model
+/// \param outer     true for the outer edge, false for the inner edge
+/// \param edge      array representing the outer edge
+/// \param visial    array representing the outer edge
+/// \exception Exceptions are thrown if the specified radii over-fill the
+/// Roche lobes.
+///
 pub fn set_disc_edge_grid(model: &Model, outer: bool, visual: bool) -> Vec<Point> {
 
     const EFAC: f64 = 1.0000001;
@@ -185,14 +218,14 @@ pub fn set_disc_edge_grid(model: &Model, outer: bool, visual: bool) -> Vec<Point
     let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
     let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value);
 
-    let rl1 = roche_context1.xl1;
+    let rl1 = roche_context1.x_l1;
     if r1 < 0.0 {
         r1 = rl1;
     } else if r1 > rl1 {
         panic!("Primary star is larger than its Roche Lobe!");
     }
 
-    let rl2 = 1.0 - roche_context2.xl1;
+    let rl2 = 1.0 - roche_context2.x_l1;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
@@ -276,7 +309,7 @@ pub fn set_disc_edge_grid(model: &Model, outer: bool, visual: bool) -> Vec<Point
         }
 
         if model.opaque {
-            eclipses = set_star_grid::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
+            eclipses = rust_roche::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
         } else {
             eclipses.clear();
         }
@@ -305,7 +338,7 @@ pub fn set_disc_edge_grid(model: &Model, outer: bool, visual: bool) -> Vec<Point
             }
 
             if model.opaque {
-                eclipses = set_star_grid::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
+                eclipses = rust_roche::disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &posn);
             } else {
                 eclipses.clear();
             }

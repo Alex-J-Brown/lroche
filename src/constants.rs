@@ -10,10 +10,10 @@ pub const C: f64 = 2.99792458e8;
 // pub const G: f64 = 6.673e-11;
 
 // Planck's constant, MKS
-pub const H: f64 = 6.6262e-34;
+// pub const H: f64 = 6.6262e-34;
 
 // Boltzmann's constant, MKS
-pub const K: f64 = 1.3806e-23;  
+// pub const K: f64 = 1.3806e-23;  
 
 // // Charge on the electron (magnitude, C)
 // pub const E: f64 = 1.602176565e-19;

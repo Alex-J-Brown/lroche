@@ -1,6 +1,7 @@
-use crate::{constants::C, vec3::Vec3};
-use crate::roche::{set_earth, Ginterp};
-use crate::model::{Point, LDC};
+use crate::constants::C;
+use crate::ginterp::Ginterp;
+use rust_roche::{self, Vec3, Point};
+use crate::model::LDC;
 
 //
 // comp_light computes a light curve point for a particular phase. It can
@@ -97,7 +98,7 @@ pub fn comp_light(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
         
         ptype = gint.interp_type(phi);
         let star1:&Vec<Point> = if ptype == 1 {
@@ -247,7 +248,7 @@ pub fn comp_star1(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
         
         // Define the grid to use
         ptype = gint.interp_type(phi);
@@ -258,10 +259,10 @@ pub fn comp_star1(
         };
         
         ssum = 0.0;
-        
+        let phi_normed: f64 = phi - phi.floor();
         // star 1
         for point in star1 {
-            if point.is_visible(phi) {
+            if point.is_visible_phase_normed(phi_normed) {
                 mu = earth.dot(&point.direction);
                 if ldc1.see(mu) {
                     if beam_factor1 != 0.0 {
@@ -344,7 +345,7 @@ pub fn comp_star2(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
         
         // Define the grid to use
         ptype = gint.interp_type(phi);
@@ -355,10 +356,10 @@ pub fn comp_star2(
         };
         
         ssum = 0.0;
-        
+        let phi_normed: f64 = phi - phi.floor();
         // star 2
         for point in star2 {
-            if point.is_visible(phi) {
+            if point.is_visible_phase_normed(phi_normed) {
                 mu = earth.dot(&point.direction);
                 if ldc2.see(mu) {
 
@@ -450,13 +451,14 @@ pub fn comp_disc(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
+        let phi_normed: f64 = phi - phi.floor();
         // Disc
         for point in disc_grid {
             mu = earth.dot(&point.direction);
-            if mu > 0.0 && point.is_visible(phi) {
+            if mu > 0.0 && point.is_visible_phase_normed(phi_normed) {
                 ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
             }
         }
@@ -480,15 +482,15 @@ pub fn comp_disc_edge(
     disc_edge_grid: &Vec<Point>
 ) -> f64 {
 
-    let ri = iangle.to_radians();
+    let ri: f64 = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
 
     let mut earth: Vec3;
     let mut phi: f64;
     let mut sum: f64 = 0.0;
-    let mut ssum;
-    let mut mu;
-    let mut wgt;
+    let mut ssum: f64;
+    let mut mu: f64;
+    let mut wgt: f64;
 
     for div in 0..n_div {
 
@@ -504,16 +506,18 @@ pub fn comp_disc_edge(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
+        let phi_normed: f64 = phi - phi.floor();
         // Disc edge
         for point in disc_edge_grid {
             mu = earth.dot(&point.direction);
-            if mu > 0.0 && point.is_visible(phi) {
+            if mu > 0.0 && point.is_visible_phase_normed(phi_normed) {
                 ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
             }
         }
+
 
         sum += wgt*ssum
 
@@ -556,7 +560,7 @@ pub fn comp_bright_spot(
             }
         }
 
-        earth = set_earth(cosi, sini, phi);
+        earth = rust_roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
         // Bright spot

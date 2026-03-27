@@ -1,6 +1,4 @@
-use crate::vec3::Vec3;
-use crate::model::Point;
-use crate::roche::Star;
+use rust_roche::{Star, Vec3, Point};
 
 //*
 // comp_radius1 computes a volume-averaged scaled radius for star 1.

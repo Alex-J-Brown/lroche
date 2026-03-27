@@ -1,9 +1,8 @@
 use std::panic;
 use std::f64::consts::FRAC_PI_2;
-use crate::model::{Point, Model, Etype};
-use crate::roche::{self, RocheContext, Star, planck};
+use crate::model::Model;
+use rust_roche::{self, RocheContext, Star, Vec3, Etype, Point};
 use crate::set_star_grid::star_eclipse;
-use crate::vec3::Vec3;
 
 //
 // set_bright_spot_grid sets up the elements needed to define the bright spot
@@ -48,8 +47,8 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
     let ffac1: f64 = r1/rl1;
     let ffac2: f64 = r2/rl2;
 
-    let (mut bspot, mut v) = roche::strinit(model.q.value);
-    roche::stradv(model.q.value, &mut bspot, &mut v, model.radius_spot.value, 1.0e-10, 1.0e-3);
+    let (mut bspot, mut v) = rust_roche::strinit(model.q.value);
+    rust_roche::stradv(model.q.value, &mut bspot, &mut v, model.radius_spot.value, 1.0e-10, 1.0e-3);
 
     // Now measure bright-spot angle relative to tangent to disc edge so we need
     // to add 90 + angle of bright-spot to the input value.
@@ -65,9 +64,9 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
     // The direction of the line of elements is set by angle_spot, but the
     // beaming direction adds in yaw_spot as well.
 
-    let bvec = Vec3::new(cos_theta, sin_theta, 0.0);
-    let pvec = Vec3::new(0.0, 0.0, 1.0);
-    let tvec = Vec3::new(sin_tilt*(theta+alpha).sin(), -sin_tilt*(theta+alpha).cos(), cos_tilt);
+    let bvec: Vec3 = Vec3::new(cos_theta, sin_theta, 0.0);
+    let pvec: Vec3 = Vec3::new(0.0, 0.0, 1.0);
+    let tvec: Vec3 = Vec3::new(sin_tilt*(theta+alpha).sin(), -sin_tilt*(theta+alpha).cos(), cos_tilt);
 
 
     let b_max: f64 = (model.expon_spot.value/model.epow_spot.value).powf(1./model.epow_spot.value);
@@ -80,13 +79,13 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
 
     // This is where the spot height gets in
     let area: f64 = sfac*model.length_spot.value*model.height_spot.value/(model.nspot as f64-1.0);
-    let bright = planck(model.wavelength, model.temp_spot.value);
+    let bright: f64 = rust_roche::planck(model.wavelength, model.temp_spot.value);
 
     for i in 0..model.nspot as usize {
 
         // Position is adjusted to locate the impact point at the peak temperature point
-        let dist = sfac * i as f64 / (model.nspot - 1) as f64;
-        let posn = bspot + model.length_spot.value * (dist - b_max)*bvec;
+        let dist: f64 = sfac * i as f64 / (model.nspot - 1) as f64;
+        let posn: Vec3 = bspot + model.length_spot.value * (dist - b_max)*bvec;
 
         eclipses.clear();
         if model.eclipse1 {
@@ -99,8 +98,8 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
         // Factor here is adjusted to equal 1 at its peak
         let modified_brightness = bright * (dist/b_max).powf(model.expon_spot.value) * (( (model.expon_spot.value/model.epow_spot.value) - dist.powf(model.epow_spot.value) ).exp());
 
-        let flux_tilt = (modified_brightness * (1.0 - model.cfrac_spot.value) * area) as f32; 
-        let flux_parallel = (modified_brightness * model.cfrac_spot.value * area) as f32; 
+        let flux_tilt: f32 = (modified_brightness * (1.0 - model.cfrac_spot.value) * area) as f32; 
+        let flux_parallel: f32 = (modified_brightness * model.cfrac_spot.value * area) as f32; 
         // the tilted strip
         bright_spot_grid[i] = Point{ position: posn, direction: tvec, area: area as f32, gravity: 1.0, eclipse: eclipses.clone(), flux: flux_tilt };
 
