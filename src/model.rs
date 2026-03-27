@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::{f64::consts::PI, str::FromStr};
+use std::f64::consts::PI;
+use crate::pparam::Pparam;
+use crate::ldc::{LDC, LDCType};
 
 
 #[derive(Debug)]
@@ -106,134 +108,8 @@ fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
 }
 
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LDCType {
-    Poly,
-    Claret,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct LDC {
-    ldc1: f64,
-    ldc2: f64,
-    ldc3: f64,
-    ldc4: f64,
-    mucrit: f64,
-    ltype: LDCType,
-}
-
-impl LDC {
-    // Default. Sets all to zero and type to POLY.
-    pub fn new() -> Self {
-        Self {
-            ldc1: 0.0,
-            ldc2: 0.0,
-            ldc3: 0.0,
-            ldc4: 0.0,
-            mucrit: 0.0,
-            ltype: LDCType::Poly,
-        }
-    }
-
-    // Standard constructor
-    pub fn with_params(
-        ldc1: f64,
-        ldc2: f64,
-        ldc3: f64,
-        ldc4: f64,
-        mucrit: f64,
-        ltype: LDCType,
-    ) -> Self {
-        Self {
-            ldc1,
-            ldc2,
-            ldc3,
-            ldc4,
-            mucrit,
-            ltype,
-        }
-    }
-
-    /// Computes I(mu)
-    pub fn imu(&self, mu: f64) -> f64 {
-        if mu <= 0.0 {
-            0.0
-        } else {
-            let mu = mu.min(1.0);
-            let ommu = 1.0 - mu;
-            let mut im = 1.0;
-
-            match self.ltype {
-                LDCType::Poly => {
-                    im -= ommu
-                        * (self.ldc1
-                            + ommu * (self.ldc2 + ommu * (self.ldc3 + ommu * self.ldc4)));
-                }
-                LDCType::Claret => {
-                    im -= self.ldc1 + self.ldc2 + self.ldc3 + self.ldc4;
-                    let msq = mu.sqrt();
-                    im += msq
-                        * (self.ldc1
-                            + msq * (self.ldc2 + msq * (self.ldc3 + msq * self.ldc4)));
-                }
-            }
-
-            im
-        }
-    }
-
-    /// To help applying mucrit
-    pub fn see(&self, mu: f64) -> bool {
-        mu > self.mucrit
-    }
-}
 
 
-impl Default for LDC {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
-#[derive(Debug, Clone, Copy)]
-pub struct Pparam {
-    pub value: f64,
-    pub range: f64,
-    pub dstep: f64,
-    pub vary: bool,
-    pub defined: bool
-}
-
-impl Default for Pparam {
-    fn default() -> Self {
-        Self {
-            value: 0.0,
-            range: 0.0,
-            dstep: 0.0,
-            vary: false,
-            defined: false
-        }
-    }
-}
-
-
-impl FromStr for Pparam {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut fields = s.split_whitespace();
-        let _name: &str = fields.next().ok_or("missing value")?;
-        let _equals: &str = fields.next().ok_or("missing value")?;
-        let value = fields.next().ok_or("missing value")?.parse().map_err(|_| "bad value")?;
-        let range = fields.next().ok_or("missing range")?.parse().map_err(|_| "bad range")?;
-        let dstep = fields.next().ok_or("missing dstep")?.parse().map_err(|_| "bad dstep")?;
-        let vary = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
-        let defined = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
-
-        Ok(Pparam { value, range, dstep, vary: vary, defined: defined})
-    }
-}
 #[derive(Debug, Clone, Copy)]
 pub struct Model {
 

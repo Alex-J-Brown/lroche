@@ -1,7 +1,7 @@
 use crate::constants::C;
 use crate::ginterp::Ginterp;
 use rust_roche::{self, Vec3, Point};
-use crate::model::LDC;
+use crate::ldc::LDC;
 
 //
 // comp_light computes a light curve point for a particular phase. It can

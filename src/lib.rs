@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 
+pub mod pparam;
+pub mod ldc;
 pub mod model;
 pub mod numface;
 pub mod set_star_grid;
