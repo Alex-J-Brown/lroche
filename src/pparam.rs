@@ -1,7 +1,8 @@
 use std::str::FromStr;
+use serde::{Serialize, Deserialize};
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Pparam {
     pub value: f64,
     pub range: f64,
@@ -9,6 +10,7 @@ pub struct Pparam {
     pub vary: bool,
     pub defined: bool
 }
+
 
 impl Default for Pparam {
     fn default() -> Self {
