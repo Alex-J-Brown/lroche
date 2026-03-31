@@ -70,4 +70,4 @@ If you want to set it back to 'false' then the whole parameter details must be g
 
 Note that `model.update` checks if the grid needs to be rebuilt depending on what parameters are given. This is useful for fitting multiband data where the grid will remain the same for all bands but the fluxes and wavelengths will change, saving time by only updating the fluxes of the gridpoints.
 
-
+**Warning!** Currently there are no checks made on the models or updates to make sure these are valid. If an update is sent with an incorrect parameter name then it will not complain but also will not update the intended parameter.
