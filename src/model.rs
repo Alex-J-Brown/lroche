@@ -36,7 +36,10 @@ macro_rules! apply_update {
         if let Some(v) = $upd.$field {
             match v {
                 PparamUpdate::Full(p) => $self.$field = p,
-                PparamUpdate::Value(val) => $self.$field.value = val,
+                PparamUpdate::Value(val) => {
+                    $self.$field.value = val;
+                    $self.$field.defined = true;
+                },
             }
         }
     };
