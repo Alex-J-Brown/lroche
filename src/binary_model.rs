@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::f64::consts::TAU;
 use rayon::prelude::*;
-use pyo3::prelude::*;
 use numpy::{PyReadonlyArray1, IntoPyArray, PyArray1};
+use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyDictMethods, PyFloat};
 use rust_roche::{self, Star, Etype, Point, disc_eclipse};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
@@ -10,13 +10,14 @@ use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_radius::comp_radius;
 use crate::constants::{C, DAY};
 use crate::ginterp::Ginterp;
-use crate::model::{Entry, Model};
+use crate::model::{Entry, Model, ModelUpdate};
 use crate::ldc::LDC;
 use crate::set_star_grid::set_star_grid;
 use crate::set_star_continuum::set_star_continuum;
 use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
 use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
 use crate::set_bright_spot_grid::set_bright_spot_grid;
+use serde_pyobject::from_pyobject;
 
 
 #[pyclass]
@@ -59,6 +60,7 @@ pub struct LightCurve {
 
 }
 
+
 #[pyclass]
 pub struct BinaryModel {
     star1_coarse_grid: Vec<Point>,
@@ -70,218 +72,103 @@ pub struct BinaryModel {
     bright_spot_grid: Vec<Point>,
     gint: Ginterp,
     rlens1: f64,
-    model: Model
+
+    #[pyo3(get)]
+    pub model: Model
 }
 
 #[pymethods]
 impl BinaryModel {
     
 
-    #[new]
-    pub fn new(dict: Bound<'_, PyDict>) -> PyResult<Self> {
+    // #[new]
+    // pub fn new(dict: Bound<'_, PyDict>) -> PyResult<Self> {
 
-        let map = map_from_pydict(dict)?;
-        let model = Model::from_map(map).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
+    //     let map = map_from_pydict(dict)?;
+    //     let model = Model::from_map(map).map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
 
-        let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true);
-        let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true);
-        let mut star1_coarse_grid: Vec<Point>;
-        let mut star2_coarse_grid: Vec<Point>;
+    //     let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true);
+    //     let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true);
+    //     let mut star1_coarse_grid: Vec<Point>;
+    //     let mut star2_coarse_grid: Vec<Point>;
 
-        let (r1, mut r2) = model.get_r1r2();
-        let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
-        if r2 < 0.0 {
-            r2 = rl2;
-        } else if r2 > rl2 {
-            panic!("Secondary is larger than Roche Lobe.")
-        }
+    //     let (r1, mut r2) = model.get_r1r2();
+    //     let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
+    //     if r2 < 0.0 {
+    //         r2 = rl2;
+    //     } else if r2 > rl2 {
+    //         panic!("Secondary is larger than Roche Lobe.")
+    //     }
 
-        set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid);
+    //     set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid);
         
 
-        if model.nlat1f == model.nlat1c {
-            star1_coarse_grid = star1_fine_grid.clone();
-        } else {
-            star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
-        }
-        let copy2: bool = (model.nlat2f == model.nlat2c) &&
-                        (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
-        if copy2 {
-            star2_coarse_grid = star2_fine_grid.clone();
-        } else {
-            star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
-        }
+    //     if model.nlat1f == model.nlat1c {
+    //         star1_coarse_grid = star1_fine_grid.clone();
+    //     } else {
+    //         star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
+    //     }
+    //     let copy2: bool = (model.nlat2f == model.nlat2c) &&
+    //                     (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
+    //     if copy2 {
+    //         star2_coarse_grid = star2_fine_grid.clone();
+    //     } else {
+    //         star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
+    //     }
 
-        if model.nlat1c != model.nlat1f || !copy2 {
-            set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
-        }
+    //     if model.nlat1c != model.nlat1f || !copy2 {
+    //         set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
+    //     }
 
-        let disc_grid: Vec<Point> = vec![];
-        let disc_edge_grid: Vec<Point> = vec![];
-        let bright_spot_grid: Vec<Point> = vec![];
+    //     let disc_grid: Vec<Point> = vec![];
+    //     let disc_edge_grid: Vec<Point> = vec![];
+    //     let bright_spot_grid: Vec<Point> = vec![];
 
-        let gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
-
-
-        let mut rlens1 = 0.0;
-        if model.glens1 {
-            let gm: f64 = (1000.0*model.velocity_scale.value).powi(3)*model.tperiod*DAY/TAU;
-            let a: f64 = (gm/((TAU/DAY/model.tperiod)*(TAU/DAY/model.tperiod))).powf(1.0/3.0);
-            rlens1 = 4.0*gm/(1.0+model.q.value)/a/(C*C);
-        }
-
-        // if model.nlat1c != model.nlat1f
+    //     let gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
 
 
-        Ok(Self {
-            star1_coarse_grid,
-            star2_coarse_grid,
-            star1_fine_grid,
-            star2_fine_grid,
-            disc_grid,
-            disc_edge_grid,
-            bright_spot_grid,
-            gint,
-            rlens1,
-            model
-        })
-    }
+    //     let mut rlens1 = 0.0;
+    //     if model.glens1 {
+    //         let gm: f64 = (1000.0*model.velocity_scale.value).powi(3)*model.tperiod*DAY/TAU;
+    //         let a: f64 = (gm/((TAU/DAY/model.tperiod)*(TAU/DAY/model.tperiod))).powf(1.0/3.0);
+    //         rlens1 = 4.0*gm/(1.0+model.q.value)/a/(C*C);
+    //     }
+
+    //     // if model.nlat1c != model.nlat1f
+
+
+    //     Ok(Self {
+    //         star1_coarse_grid,
+    //         star2_coarse_grid,
+    //         star1_fine_grid,
+    //         star2_fine_grid,
+    //         disc_grid,
+    //         disc_edge_grid,
+    //         bright_spot_grid,
+    //         gint,
+    //         rlens1,
+    //         model
+    //     })
+    // }
 
 
     #[staticmethod]
     pub fn from_file(filename: &str) -> PyResult<Self> {
         let model = Model::from_file(filename)
             .map_err(|e| pyo3::exceptions::PyIOError::new_err(e))?;
-        let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true);
-        let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true);
-        let mut star1_coarse_grid: Vec<Point>;
-        let mut star2_coarse_grid: Vec<Point>;
-
-        let (r1, mut r2) = model.get_r1r2();
-        let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
-        if r2 < 0.0 {
-            r2 = rl2;
-        } else if r2 > rl2 {
-            panic!("Secondary is larger than Roche Lobe.")
-        }
-        
-        set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid);
-        
-        
-        if model.nlat1f == model.nlat1c {
-            star1_coarse_grid = star1_fine_grid.clone();
-        } else {
-            star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
-        }
-        
-        let copy2: bool = (model.nlat2f == model.nlat2c) &&
-        (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
-        
-        if copy2 {
-            star2_coarse_grid = star2_fine_grid.clone();
-        } else {
-            star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
-        }
-        
-        if model.nlat1c != model.nlat1f || !copy2 {
-            set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
-        }
-        
-        let mut disc_grid: Vec<Point> = vec![];
-        let mut disc_edge_grid: Vec<Point> = vec![];
-        let mut bright_spot_grid: Vec<Point> = vec![];
-
-
-        let mut gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
-
-
-        let mut rlens1 = 0.0;
-        if model.glens1 {
-            let gm: f64 = (1000.0*model.velocity_scale.value).powi(3)*model.tperiod*DAY/TAU;
-            let a: f64 = (gm/((TAU/DAY/model.tperiod)*(TAU/DAY/model.tperiod))).powf(1.0/3.0);
-            rlens1 = 4.0*gm/(1.0+model.q.value)/a/(C*C);
-        }
-
-        let ldc1: LDC = model.get_ldc1();
-        let ldc2: LDC = model.get_ldc2();
-
-        if model.nlat1c != model.nlat1f {
-            let ff: f64 = comp_star1(model.iangle.value, &ldc1, 0.9999999999*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
-            let fc: f64 = comp_star1(model.iangle.value, &ldc1, 1.0000000001*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
-            gint.scale11 = ff/fc;
-
-            let ff: f64 = comp_star1(model.iangle.value, &ldc1, 1.0-0.9999999999*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
-            let fc: f64 = comp_star1(model.iangle.value, &ldc1, 1.0-1.0000000001*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
-            gint.scale12 = ff/fc;
-        }
-
-        if !copy2 {
-            let ff: f64 = comp_star2(model.iangle.value, &ldc2, 1.0-1.0000000001*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
-            let fc: f64 = comp_star2(model.iangle.value, &ldc2, 1.0-0.9999999999*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
-            gint.scale21 = ff/fc;
-
-            let ff: f64 = comp_star2(model.iangle.value, &ldc2, 1.0000000001*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
-            let fc: f64 = comp_star2(model.iangle.value, &ldc2, 0.9999999999*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
-            gint.scale22 = ff/fc;
-        }
-
-        if model.add_disc {
-            disc_grid = set_disc_grid(&model);
-            disc_edge_grid = set_disc_edge_grid(&model, true, false);
-
-            let rdisc1 = if model.rdisc1.value > 0.0 {
-                model.rdisc1.value
-            } else {
-                r1
-            };
-            let rdisc2 = if model.rdisc2.value > 0.0 {
-                model.rdisc2.value
-            } else {
-                model.radius_spot.value
-            };
-
-            let mut eclipses: Etype;
-            if model.opaque {
-                for point in &mut star1_fine_grid {
-                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
-                    for i in 0..eclipses.len() {
-                        point.eclipse.push(eclipses[i]);
-                    }
-                }
-                for point in &mut star1_coarse_grid {
-                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
-                    for i in 0..eclipses.len() {
-                        point.eclipse.push(eclipses[i]);
-                    }
-                }
-                for point in &mut star2_fine_grid {
-                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
-                    for i in 0..eclipses.len() {
-                        point.eclipse.push(eclipses[i]);
-                    }
-                }
-                for point in &mut star2_coarse_grid {
-                    eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
-                    for i in 0..eclipses.len() {
-                        point.eclipse.push(eclipses[i]);
-                    }
-                }
-            }
-            
-            // Set the surface brightness of the disc
-            set_disc_continuum(rdisc2, model.temp_disc.value, model.texp_disc.value, model.wavelength, &mut disc_grid);
-
-            // Set the surface brightness of outer edge, accounting for
-            // irradiation by star 2
-            set_edge_continuum(model.temp_edge.value, r2, model.t2.value.abs(), model.absorb_edge.value, model.wavelength, &mut disc_edge_grid);
-
-        }
-
-        if model.add_spot {
-
-            bright_spot_grid = set_bright_spot_grid(&model);
-        }
-
+        let (
+            star1_coarse_grid,
+            star2_coarse_grid,
+            star1_fine_grid,
+            star2_fine_grid,
+            disc_grid,
+            disc_edge_grid,
+            bright_spot_grid,
+            gint,
+            rlens1
+        ) = build_grids(&model)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+            .unwrap();
         
         Ok(Self {
             star1_coarse_grid,
@@ -298,35 +185,29 @@ impl BinaryModel {
     }
 
 
-    pub fn update_wavelength_dependent(&mut self, new_model: Bound<'_, PyDict>) -> () {
-        let map = map_from_pydict(new_model).unwrap();
-        let new_model = Model::from_map(map).map_err(|e| pyo3::exceptions::PyValueError::new_err(e)).unwrap();
-        self.model.t1.value = new_model.t1.value;
-        self.model.t2.value = new_model.t2.value;
-        self.model.ldc1_1.value = new_model.ldc1_1.value;
-        self.model.ldc1_2.value = new_model.ldc1_2.value;
-        self.model.ldc1_3.value = new_model.ldc1_3.value;
-        self.model.ldc1_4.value = new_model.ldc1_4.value;
-        self.model.ldc2_1.value = new_model.ldc2_1.value;
-        self.model.ldc2_2.value = new_model.ldc2_2.value;
-        self.model.ldc2_3.value = new_model.ldc2_3.value;
-        self.model.ldc2_4.value = new_model.ldc2_4.value;
-        self.model.gravity_dark1.value = new_model.gravity_dark1.value;
-        self.model.gravity_dark2.value = new_model.gravity_dark2.value;
-        self.model.beam_factor1.value = new_model.beam_factor1.value;
-        self.model.beam_factor2.value = new_model.beam_factor2.value;
-        self.model.absorb.value = new_model.absorb.value;
-        self.model.slope.value = new_model.slope.value;
-        self.model.quad.value = new_model.quad.value;
-        self.model.cube.value = new_model.cube.value;
-        self.model.third.value = new_model.third.value;
-        self.model.wavelength = new_model.wavelength;
-        set_star_continuum(&self.model, &mut self.star1_coarse_grid, &mut self.star2_coarse_grid);
-        set_star_continuum(&self.model, &mut self.star1_fine_grid, &mut self.star2_fine_grid);
-        
+    pub fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
+        let upd: ModelUpdate = from_pyobject(dict.clone())?;
+        let grid_changed = upd.grid_changed();
+        self.model.apply_update(upd);
+        if grid_changed {
+            (
+                self.star1_coarse_grid,
+                self.star2_coarse_grid,
+                self.star1_fine_grid,
+                self.star2_fine_grid,
+                self.disc_grid,
+                self.disc_edge_grid,
+                self.bright_spot_grid,
+                self.gint,
+                self.rlens1
+            ) = build_grids(&self.model)
+                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
+                .unwrap();
+        } else {
+            self.reset_grid_continuum();
+        }
+        Ok(())
     }
-
-
 
     
     #[pyo3(signature = (
@@ -518,11 +399,14 @@ impl BinaryModel {
 
 
 impl BinaryModel {
+
+
     fn compute_star1_flux(&self, phase: f64, ldc1: &LDC, expose: f64, n_div: i32) -> f64 {
         let star1_flux: f64;
         star1_flux = comp_star1(self.model.iangle.value, ldc1, phase, expose, n_div, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
         star1_flux
     }
+
 
     fn compute_star2_flux(&self, phase: f64, ldc2: &LDC, expose: f64, n_div: i32) -> f64 {
         let star2_flux: f64;
@@ -530,11 +414,13 @@ impl BinaryModel {
         star2_flux
     }
 
+
     fn compute_disc_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
         let disc_flux: f64;
         disc_flux = comp_disc(self.model.iangle.value, self.model.lin_limb_disc.value, self.model.quad_limb_disc.value, phase, expose, n_div, &self.disc_grid);
         disc_flux
     }
+
 
     fn compute_disc_edge_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
         let disc_edge_flux: f64;
@@ -542,11 +428,223 @@ impl BinaryModel {
         disc_edge_flux
     }
 
+
     fn compute_bright_spot_flux(&self, phase: f64, expose: f64, n_div: i32) -> f64 {
         let bright_spot_flux: f64;
         bright_spot_flux = comp_bright_spot(self.model.iangle.value, phase, expose, n_div, &self.bright_spot_grid);
         bright_spot_flux
     }
+
+
+    fn reset_grid_continuum(&mut self) -> () {
+
+        let (r1, mut r2) = self.model.get_r1r2();
+        let rl2: f64 = 1.0 - rust_roche::x_l1_2(self.model.q.value, self.model.spin2.value);
+        if r2 < 0.0 {
+            r2 = rl2;
+        } else if r2 > rl2 {
+            panic!("Secondary is larger than Roche Lobe.")
+        }
+
+        let ldc1: LDC = self.model.get_ldc1();
+        let ldc2: LDC = self.model.get_ldc2();
+
+
+        set_star_continuum(&self.model, &mut self.star1_fine_grid, &mut self.star2_fine_grid);
+        set_star_continuum(&self.model, &mut self.star1_coarse_grid, &mut self.star2_coarse_grid);
+
+        let copy2: bool = (self.model.nlat2f == self.model.nlat2c) &&
+            (!self.model.npole || r1 >= r2 || (self.model.nlatfill == 0 && self.model.nlngfill == 0));
+        if self.model.nlat1c != self.model.nlat1f {
+            let ff: f64 = comp_star1(self.model.iangle.value, &ldc1, 0.9999999999*self.model.phase1, 0.0, 1, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
+            let fc: f64 = comp_star1(self.model.iangle.value, &ldc1, 1.0000000001*self.model.phase1, 0.0, 1, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
+            self.gint.scale11 = ff/fc;
+
+            let ff: f64 = comp_star1(self.model.iangle.value, &ldc1, 1.0-0.9999999999*self.model.phase1, 0.0, 1, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
+            let fc: f64 = comp_star1(self.model.iangle.value, &ldc1, 1.0-1.0000000001*self.model.phase1, 0.0, 1, self.model.q.value, self.model.beam_factor1.value, self.model.velocity_scale.value, &self.gint, &self.star1_fine_grid, &self.star1_coarse_grid);
+            self.gint.scale12 = ff/fc;
+        }
+
+        if !copy2 {
+            let ff: f64 = comp_star2(self.model.iangle.value, &ldc2, 1.0-1.0000000001*self.model.phase2, 0.0, 1, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
+            let fc: f64 = comp_star2(self.model.iangle.value, &ldc2, 1.0-0.9999999999*self.model.phase2, 0.0, 1, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
+            self.gint.scale21 = ff/fc;
+
+            let ff: f64 = comp_star2(self.model.iangle.value, &ldc2, 1.0000000001*self.model.phase2, 0.0, 1, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
+            let fc: f64 = comp_star2(self.model.iangle.value, &ldc2, 0.9999999999*self.model.phase2, 0.0, 1, self.model.q.value, self.model.beam_factor2.value, self.model.velocity_scale.value, self.model.glens1, self.rlens1, &self.gint, &self.star2_fine_grid, &self.star2_coarse_grid);
+            self.gint.scale22 = ff/fc;
+        }
+
+
+        if self.model.add_disc {
+
+            let rdisc2 = if self.model.rdisc2.value > 0.0 {
+                self.model.rdisc2.value
+            } else {
+                self.model.radius_spot.value
+            };
+            
+            // Set the surface brightness of the disc
+            set_disc_continuum(rdisc2, self.model.temp_disc.value, self.model.texp_disc.value, self.model.wavelength, &mut self.disc_grid);
+
+            // Set the surface brightness of outer edge, accounting for
+            // irradiation by star 2
+            set_edge_continuum(self.model.temp_edge.value, r2, self.model.t2.value.abs(), self.model.absorb_edge.value, self.model.wavelength, &mut self.disc_edge_grid);
+
+        }
+
+        if self.model.add_spot {
+
+            self.bright_spot_grid = set_bright_spot_grid(&self.model);
+        }
+
+    }
+
+
+}
+
+
+fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Ginterp, f64), String> {
+
+    let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true);
+    let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true);
+    let mut star1_coarse_grid: Vec<Point>;
+    let mut star2_coarse_grid: Vec<Point>;
+
+    let (r1, mut r2) = model.get_r1r2();
+    let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
+    if r2 < 0.0 {
+        r2 = rl2;
+    } else if r2 > rl2 {
+        panic!("Secondary is larger than Roche Lobe.")
+    }
+    
+    set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid);
+    
+    
+    if model.nlat1f == model.nlat1c {
+        star1_coarse_grid = star1_fine_grid.clone();
+    } else {
+        star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
+    }
+    
+    let copy2: bool = (model.nlat2f == model.nlat2c) &&
+    (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
+    
+    if copy2 {
+        star2_coarse_grid = star2_fine_grid.clone();
+    } else {
+        star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
+    }
+    
+    if model.nlat1c != model.nlat1f || !copy2 {
+        set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
+    }
+    
+    let mut disc_grid: Vec<Point> = vec![];
+    let mut disc_edge_grid: Vec<Point> = vec![];
+    let mut bright_spot_grid: Vec<Point> = vec![];
+
+
+    let mut gint: Ginterp = Ginterp{ phase1: model.phase1, phase2: model.phase2, scale11: 1.0, scale12: 1.0, scale21: 1.0, scale22: 1.0};
+
+
+    let mut rlens1 = 0.0;
+    if model.glens1 {
+        let gm: f64 = (1000.0*model.velocity_scale.value).powi(3)*model.tperiod*DAY/TAU;
+        let a: f64 = (gm/((TAU/DAY/model.tperiod)*(TAU/DAY/model.tperiod))).powf(1.0/3.0);
+        rlens1 = 4.0*gm/(1.0+model.q.value)/a/(C*C);
+    }
+
+    let ldc1: LDC = model.get_ldc1();
+    let ldc2: LDC = model.get_ldc2();
+
+    if model.nlat1c != model.nlat1f {
+        let ff: f64 = comp_star1(model.iangle.value, &ldc1, 0.9999999999*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
+        let fc: f64 = comp_star1(model.iangle.value, &ldc1, 1.0000000001*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
+        gint.scale11 = ff/fc;
+
+        let ff: f64 = comp_star1(model.iangle.value, &ldc1, 1.0-0.9999999999*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
+        let fc: f64 = comp_star1(model.iangle.value, &ldc1, 1.0-1.0000000001*model.phase1, 0.0, 1, model.q.value, model.beam_factor1.value, model.velocity_scale.value, &gint, &star1_fine_grid, &star1_coarse_grid);
+        gint.scale12 = ff/fc;
+    }
+
+    if !copy2 {
+        let ff: f64 = comp_star2(model.iangle.value, &ldc2, 1.0-1.0000000001*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
+        let fc: f64 = comp_star2(model.iangle.value, &ldc2, 1.0-0.9999999999*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
+        gint.scale21 = ff/fc;
+
+        let ff: f64 = comp_star2(model.iangle.value, &ldc2, 1.0000000001*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
+        let fc: f64 = comp_star2(model.iangle.value, &ldc2, 0.9999999999*model.phase2, 0.0, 1, model.q.value, model.beam_factor2.value, model.velocity_scale.value, model.glens1, rlens1, &gint, &star2_fine_grid, &star2_coarse_grid);
+        gint.scale22 = ff/fc;
+    }
+
+    if model.add_disc {
+        disc_grid = set_disc_grid(&model);
+        disc_edge_grid = set_disc_edge_grid(&model, true, false);
+
+        let rdisc1 = if model.rdisc1.value > 0.0 {
+            model.rdisc1.value
+        } else {
+            r1
+        };
+        let rdisc2 = if model.rdisc2.value > 0.0 {
+            model.rdisc2.value
+        } else {
+            model.radius_spot.value
+        };
+
+        let mut eclipses: Etype;
+        if model.opaque {
+            for point in &mut star1_fine_grid {
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                for i in 0..eclipses.len() {
+                    point.eclipse.push(eclipses[i]);
+                }
+            }
+            for point in &mut star1_coarse_grid {
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                for i in 0..eclipses.len() {
+                    point.eclipse.push(eclipses[i]);
+                }
+            }
+            for point in &mut star2_fine_grid {
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                for i in 0..eclipses.len() {
+                    point.eclipse.push(eclipses[i]);
+                }
+            }
+            for point in &mut star2_coarse_grid {
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                for i in 0..eclipses.len() {
+                    point.eclipse.push(eclipses[i]);
+                }
+            }
+        }
+        
+        // Set the surface brightness of the disc
+        set_disc_continuum(rdisc2, model.temp_disc.value, model.texp_disc.value, model.wavelength, &mut disc_grid);
+
+        // Set the surface brightness of outer edge, accounting for
+        // irradiation by star 2
+        set_edge_continuum(model.temp_edge.value, r2, model.t2.value.abs(), model.absorb_edge.value, model.wavelength, &mut disc_edge_grid);
+
+    }
+
+    if model.add_spot {
+
+        bright_spot_grid = set_bright_spot_grid(&model);
+    }
+    
+    Ok((star1_coarse_grid,
+        star2_coarse_grid,
+        star1_fine_grid,
+        star2_fine_grid,
+        disc_grid,
+        disc_edge_grid,
+        bright_spot_grid,
+        gint,
+        rlens1))
 
 }
 
