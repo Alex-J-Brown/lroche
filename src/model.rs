@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 use serde_pyobject::from_pyobject;
 use pyo3::types::PyAny;
 
-use crate::pparam::Pparam;
+use crate::pparam::{Pparam, PparamPartial};
 use crate::ldc::{LDC, LDCType};
 
 
@@ -36,6 +36,13 @@ macro_rules! apply_update {
         if let Some(v) = $upd.$field {
             match v {
                 PparamUpdate::Full(p) => $self.$field = p,
+                PparamUpdate::Partial(p) => {
+                    if let Some(v) = p.value { $self.$field.value = v; }
+                    if let Some(v) = p.range { $self.$field.range = v; }
+                    if let Some(v) = p.dstep { $self.$field.dstep = v; }
+                    if let Some(v) = p.vary { $self.$field.vary = v; }
+                    if let Some(v) = p.defined { $self.$field.defined = v; }
+                }
                 PparamUpdate::Value(val) => {
                     $self.$field.value = val;
                     $self.$field.defined = true;
@@ -64,11 +71,13 @@ pub enum Entry {
 #[serde(untagged)]
 pub enum PparamUpdate {
     Full(Pparam),
+    Partial(PparamPartial),
     Value(f64),
 }
 
 
 #[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ModelUpdate {
     pub q: Option<PparamUpdate>,
     pub iangle: Option<PparamUpdate>,

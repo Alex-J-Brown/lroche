@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Pparam {
     pub value: f64,
     pub range: f64,
@@ -40,4 +41,15 @@ impl FromStr for Pparam {
 
         Ok(Pparam { value, range, dstep, vary: vary, defined: defined})
     }
+}
+
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PparamPartial {
+    pub value: Option<f64>,
+    pub range: Option<f64>,
+    pub dstep: Option<f64>,
+    pub vary: Option<bool>,
+    pub defined: Option<bool>
 }
