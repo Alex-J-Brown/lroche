@@ -71,3 +71,27 @@ If you want to set it back to 'false' then the whole parameter details must be g
 Note that `model.update` checks if the grid needs to be rebuilt depending on what parameters are given. This is useful for fitting multiband data where the grid will remain the same for all bands but the fluxes and wavelengths will change, saving time by only updating the fluxes of the gridpoints.
 
 **Warning!** Currently there are no checks made on the models or updates to make sure these are valid. If an update is sent with an incorrect parameter name then it will not complain but also will not update the intended parameter.
+
+The LCURVE fitting routines, `levmarq`, and `simplex` have not been implemented in lroche, however the relatively simple python interface means that fitting algorithms from scipy can be used easily.
+
+.. code-block:: python
+
+    from scipy.minimize import curve_fit, minimize
+
+
+    def fit_function_minimize(params):
+        model.update({"t0": params[0]})
+        return model.compute_light_curve(time, exp, n_div, flux, flux_err, weight).chi2
+
+
+    res = minimize(fit_function_minimize, [58674.006198], method='Nelder-Mead')
+    print(f"t0 = {res.x[0]}")
+
+
+    def fit_function_curve_fit(time, t0):
+        model.update({"t0": t0})
+        return model.compute_light_curve(time, exp, n_div, flux, flux_err, weight).total
+
+    popt, pcov = curve_fit(fit_function_curve_fit, xdata=time, ydata=flux, p0=[58674.006198], sigma=flux_err, method='lm', xtol=1e-12)
+    print(f"t0 = {popt[0]} +- {np.sqrt(np.diag(pcov))[0]}")
+    
