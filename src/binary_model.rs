@@ -681,17 +681,21 @@ pub fn rescale(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flu
     let mut sdy: f64 = 0.0;
     let mut syy: f64 = 0.0;
     for i in 0..flux.len() {
-        if let Some(weight) = weight {
-            if weight[i] > 0.0 {
-                let wgt = weight[i] / (flux_err[i]*flux_err[i]);
+        if flux_err[i] < 0.0 {
+            continue;
+        } else {
+            if let Some(weight) = weight {
+                if weight[i] > 0.0 {
+                    let wgt = weight[i] / (flux_err[i]*flux_err[i]);
+                    sdy += wgt*flux[i]*model_flux[i];
+                    syy += wgt*model_flux[i]*model_flux[i];
+                }
+
+            } else {
+                let wgt = 1.0 / (flux_err[i] * flux_err[i]);
                 sdy += wgt*flux[i]*model_flux[i];
                 syy += wgt*model_flux[i]*model_flux[i];
             }
-
-        } else {
-            let wgt = 1.0 / (flux_err[i] * flux_err[i]);
-            sdy += wgt*flux[i]*model_flux[i];
-            syy += wgt*model_flux[i]*model_flux[i];
         }
     }
     let scale: f64 = sdy/syy;
@@ -704,12 +708,16 @@ pub fn chisq_log_prob(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, mo
     let mut chisq_sum: f64 = 0.0;
     let mut log_prob: f64 = 0.0;
     for i in 0..flux.len() {
-        if let Some(weight) = weight {
-            if weight[i] > 0.0 {
-                chisq_i = weight[i] * ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
-            }
+        if flux_err[i] < 0.0 {
+            chisq_i = 0.0
         } else {
-            chisq_i = ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
+            if let Some(weight) = weight {
+                if weight[i] > 0.0 {
+                    chisq_i = weight[i] * ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
+                } else {
+                    chisq_i = ((flux[i] - model_flux[i])/flux_err[i]).powi(2);
+                }
+            }
         }
         chisq_sum += chisq_i;
         log_prob += -0.5*(chisq_i + (TAU*flux_err[i]*flux_err[i]).ln())
