@@ -41,6 +41,9 @@ pub struct LightCurve {
     pub total: Py<PyArray1<f64>>,
 
     #[pyo3(get)]
+    pub star1_contribution: f64,
+
+    #[pyo3(get)]
     pub logg1: f64,
 
     #[pyo3(get)]
@@ -345,6 +348,8 @@ impl BinaryModel {
             *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
         
+
+        let mut star1_contribution: f64 = self.compute_star1_flux(0.5, &ldc1, 0.0, 1);
         
         for i in 0..time.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
@@ -360,6 +365,8 @@ impl BinaryModel {
                 bright_spot[i] *= scale_factor;
                 total[i] *= scale_factor;
             }
+
+            star1_contribution *= scale_factor;
 
             let (chisq, log_prob) = chisq_log_prob(flux.unwrap(), flux_err.unwrap(), weight, &total);
             (Some(chisq), Some(log_prob))
@@ -386,6 +393,7 @@ impl BinaryModel {
             disc_edge: disc_edge.into_pyarray(py).unbind(),
             bright_spot: bright_spot.into_pyarray(py).unbind(),
             total: total.into_pyarray(py).unbind(),
+            star1_contribution: star1_contribution,
             logg1: logg1,
             logg2: logg2,
             rva1: rva1,
