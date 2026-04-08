@@ -95,7 +95,7 @@ impl BinaryModel {
             gint,
             rlens1,
         ) = build_grids(&model)?;
-        
+
         Ok(Self {
             star1_coarse_grid,
             star2_coarse_grid,
@@ -181,7 +181,6 @@ impl BinaryModel {
         autoscale: bool,
     ) -> PyResult<LightCurve> {
 
-
         let time: &[f64] = time.as_slice()?;
         let t_exp: &[f64] = t_exp.as_slice()?;
         // let n_div: &[f64] = n_div.as_slice()?;
@@ -248,7 +247,7 @@ impl BinaryModel {
             let expose: f64 = t_exp[i] / self.model.period.value;
             *out = self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
         });
-        
+
         disc.par_iter_mut().enumerate().for_each(|(i, out)| {
             let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
             // small Newton-Raphson iteration
@@ -264,7 +263,7 @@ impl BinaryModel {
             let expose: f64 = t_exp[i] / self.model.period.value;
             *out = self.compute_disc_flux(phase, expose, n_div[i] as i32);
         });
-        
+
         disc_edge.par_iter_mut().enumerate().for_each(|(i, out)| {
             let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
             // small Newton-Raphson iteration
@@ -298,7 +297,7 @@ impl BinaryModel {
         });
 
         let mut star1_contribution: f64 = self.compute_star1_flux(0.5, &ldc1, 0.0, 1);
-        
+
         for i in 0..time.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
@@ -327,11 +326,11 @@ impl BinaryModel {
         let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
         let rva1: f64 = if self.model.roche1 {
             comp_radius(&self.star1_coarse_grid, Star::Primary)
-            } else {
-                self.model.r1.value
-            };
+        } else {
+            self.model.r1.value
+        };
         let rva2: f64 = comp_radius(&self.star2_coarse_grid, Star::Secondary);
-        
+
         Ok(LightCurve {
             star1: star1.into_pyarray(py).unbind(),
             star2: star2.into_pyarray(py).unbind(),
@@ -576,7 +575,7 @@ impl BinaryModel {
             } else {
                 self.model.radius_spot.value
             };
-            
+
             // Set the surface brightness of the disc
             set_disc_continuum(
                 rdisc2,
@@ -621,6 +620,7 @@ fn build_grids(
     ),
     RocheError,
 > {
+    model.validate();
     let mut star1_fine_grid = set_star_grid(model, Star::Primary, true)?;
     let mut star2_fine_grid = set_star_grid(model, Star::Secondary, true)?;
     let mut star1_coarse_grid: Vec<Point>;
@@ -633,28 +633,28 @@ fn build_grids(
     } else if r2 > rl2 {
         panic!("Secondary is larger than Roche Lobe.")
     }
-    
+
     set_star_continuum(model, &mut star1_fine_grid, &mut star2_fine_grid)?;
-    
+
     if model.nlat1f == model.nlat1c {
         star1_coarse_grid = star1_fine_grid.clone();
     } else {
         star1_coarse_grid = set_star_grid(model, Star::Primary, false)?;
     }
-    
+
     let copy2: bool = (model.nlat2f == model.nlat2c)
         && (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
-    
+
     if copy2 {
         star2_coarse_grid = star2_fine_grid.clone();
     } else {
         star2_coarse_grid = set_star_grid(model, Star::Secondary, false)?
     }
-    
+
     if model.nlat1c != model.nlat1f || !copy2 {
         set_star_continuum(model, &mut star1_coarse_grid, &mut star2_coarse_grid)?;
     }
-    
+
     let mut disc_grid: Vec<Point> = vec![];
     let mut disc_edge_grid: Vec<Point> = vec![];
     let mut bright_spot_grid: Vec<Point> = vec![];
@@ -873,7 +873,7 @@ fn build_grids(
                 }
             }
         }
-        
+
         // Set the surface brightness of the disc
         set_disc_continuum(
             rdisc2,
@@ -898,7 +898,7 @@ fn build_grids(
     if model.add_spot {
         bright_spot_grid = set_bright_spot_grid(model)?;
     }
-    
+
     Ok((
         star1_coarse_grid,
         star2_coarse_grid,
@@ -926,7 +926,7 @@ pub fn map_from_pydict(dict: Bound<'_, PyDict>) -> PyResult<HashMap<String, Entr
                 Entry::Scalar(if v { "1".to_string() } else { "0".to_string() }),
             );
         } else if let Ok(v) = value.extract::<String>() {
-        map.insert(name, Entry::Scalar(v));
+            map.insert(name, Entry::Scalar(v));
         } else {
             return Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(format!(
                 "Unsupported type for key {}",
@@ -945,17 +945,17 @@ pub fn rescale(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, model_flu
         if flux_err[i] < 0.0 {
             continue;
         } else if let Some(weight) = weight {
-                if weight[i] > 0.0 {
+            if weight[i] > 0.0 {
                 let wgt = weight[i] / (flux_err[i] * flux_err[i]);
                 sdy += wgt * flux[i] * model_flux[i];
                 syy += wgt * model_flux[i] * model_flux[i];
-                }
-            } else {
-                let wgt = 1.0 / (flux_err[i] * flux_err[i]);
+            }
+        } else {
+            let wgt = 1.0 / (flux_err[i] * flux_err[i]);
             sdy += wgt * flux[i] * model_flux[i];
             syy += wgt * model_flux[i] * model_flux[i];
-            }
         }
+    }
     let scale: f64 = sdy / syy;
     scale
 }
@@ -973,12 +973,12 @@ pub fn chisq_log_prob(
         if flux_err[i] < 0.0 {
             chisq_i = 0.0
         } else if let Some(weight) = weight {
-                if weight[i] > 0.0 {
+            if weight[i] > 0.0 {
                 chisq_i = weight[i] * ((flux[i] - model_flux[i]) / flux_err[i]).powi(2);
-                } else {
+            } else {
                 chisq_i = ((flux[i] - model_flux[i]) / flux_err[i]).powi(2);
-                }
             }
+        }
 
         chisq_sum += chisq_i;
         log_prob += -0.5 * (chisq_i + (TAU * flux_err[i] * flux_err[i]).ln())
