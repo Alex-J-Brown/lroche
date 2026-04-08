@@ -239,7 +239,7 @@ impl ModelUpdate {
     }
 }
 
-#[pyclass(skip_from_py_object)]
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Model {
@@ -766,6 +766,13 @@ impl Model {
     fn new() -> Self {
         Model::default()
     }
+
+    #[staticmethod]
+    #[pyo3(name="from_file")]
+    fn from_file_py(path: &str) -> PyResult<Self> {
+        Model::from_file(path).map_err(pyo3::exceptions::PyIOError::new_err)
+    }
+
 
     fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;

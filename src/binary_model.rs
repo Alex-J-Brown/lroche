@@ -176,6 +176,34 @@ impl BinaryModel {
         })
     }
 
+    #[staticmethod]
+    pub fn from_model(model: Model) -> PyResult<Self> {
+        let (
+            star1_coarse_grid,
+            star2_coarse_grid,
+            star1_fine_grid,
+            star2_fine_grid,
+            disc_grid,
+            disc_edge_grid,
+            bright_spot_grid,
+            gint,
+            rlens1,
+        ) = build_grids(&model)?;
+
+        Ok(Self {
+            star1_coarse_grid,
+            star2_coarse_grid,
+            star1_fine_grid,
+            star2_fine_grid,
+            disc_grid,
+            disc_edge_grid,
+            bright_spot_grid,
+            gint,
+            rlens1,
+            model,
+        })
+    }
+
     pub fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
         let grid_changed = upd.grid_changed();
