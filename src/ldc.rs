@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LDCType {
@@ -60,15 +60,13 @@ impl LDC {
             match self.ltype {
                 LDCType::Poly => {
                     im -= ommu
-                        * (self.ldc1
-                            + ommu * (self.ldc2 + ommu * (self.ldc3 + ommu * self.ldc4)));
+                        * (self.ldc1 + ommu * (self.ldc2 + ommu * (self.ldc3 + ommu * self.ldc4)));
                 }
                 LDCType::Claret => {
                     im -= self.ldc1 + self.ldc2 + self.ldc3 + self.ldc4;
                     let msq = mu.sqrt();
-                    im += msq
-                        * (self.ldc1
-                            + msq * (self.ldc2 + msq * (self.ldc3 + msq * self.ldc4)));
+                    im +=
+                        msq * (self.ldc1 + msq * (self.ldc2 + msq * (self.ldc3 + msq * self.ldc4)));
                 }
             }
 
@@ -81,7 +79,6 @@ impl LDC {
         mu > self.mucrit
     }
 }
-
 
 impl Default for LDC {
     fn default() -> Self {

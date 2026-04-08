@@ -1,7 +1,7 @@
 use crate::constants::C;
 use crate::ginterp::Ginterp;
-use roche::{self, Vec3, Point};
 use crate::ldc::LDC;
+use roche::{self, Point, Vec3};
 
 //
 // comp_light computes a light curve point for a particular phase. It can
@@ -33,7 +33,6 @@ use crate::ldc::LDC;
 // \return the light curve value desired.
 //
 
-
 pub fn comp_light(
     iangle: f64,
     ldc1: &LDC,
@@ -53,12 +52,11 @@ pub fn comp_light(
     star1f: &Vec<Point>,
     star2f: &Vec<Point>,
     star1c: &Vec<Point>,
-    star2c: &Vec<Point>
+    star2c: &Vec<Point>,
 ) -> f64 {
-
-    let x_cofm: f64 = q/(1.0+q);
+    let x_cofm: f64 = q / (1.0 + q);
     let (sini, cosi) = iangle.to_radians().sin_cos();
-    let vfac: f64 = vscale/(C/1.0e3);
+    let vfac: f64 = vscale / (C / 1.0e3);
 
     let mut earth: Vec3;
     let mut sum = 0.0;
@@ -80,17 +78,16 @@ pub fn comp_light(
     let mut mag: f64;
     let mut rd: f64;
     let mut ptype: i32;
-    
+
     let mut ssum: f64;
     let mut ssum2: f64;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -99,34 +96,27 @@ pub fn comp_light(
         }
 
         earth = roche::set_earth(cosi, sini, phi);
-        
-        ptype = gint.interp_type(phi);
-        let star1:&Vec<Point> = if ptype == 1 {
-            star1f
-        } else {
-            star1c
-        };
 
-        let star2:&Vec<Point> = if ptype == 3 {
-            star2f
-        } else {
-            star2c
-        };
-        
+        ptype = gint.interp_type(phi);
+        let star1: &Vec<Point> = if ptype == 1 { star1f } else { star1c };
+
+        let star2: &Vec<Point> = if ptype == 3 { star2f } else { star2c };
+
         ssum = 0.0;
-        
+
         // star 1
         for point in star1 {
             if point.is_visible(phi) {
                 mu = earth.dot(&point.direction);
                 if ldc1.see(mu) {
                     if beam_factor1 != 0.0 {
-                        vx = -vfac*spin1*point.position.y;
-                        vy = vfac*(spin1*point.position.x-x_cofm);
-                        vr = -(earth.x*vx + earth.y*vy);
-                        vn = point.direction.x*vx + point.direction.y*vy;
-                        mud = mu - mu*vr - vn;
-                        ssum += mu * (point.flux as f64) * ldc1.imu(mud) * (1.0 - beam_factor1*vr);
+                        vx = -vfac * spin1 * point.position.y;
+                        vy = vfac * (spin1 * point.position.x - x_cofm);
+                        vr = -(earth.x * vx + earth.y * vy);
+                        vn = point.direction.x * vx + point.direction.y * vy;
+                        mud = mu - mu * vr - vn;
+                        ssum +=
+                            mu * (point.flux as f64) * ldc1.imu(mud) * (1.0 - beam_factor1 * vr);
                     } else {
                         ssum += mu * (point.flux as f64) * ldc1.imu(mu);
                     }
@@ -134,17 +124,15 @@ pub fn comp_light(
             }
         }
         ssum *= gint.scale1(phi);
-        
+
         // star 2
         ssum2 = 0.0;
 
         for point in star2 {
-
             if point.is_visible(phi) {
                 mu = earth.dot(&point.direction);
 
                 if ldc2.see(mu) {
-
                     // Account for magnifying effect of gravitational lensing here
                     mag = 1.0;
                     if glens1 {
@@ -163,26 +151,30 @@ pub fn comp_light(
                             // save time by avoiding square root if
                             // possible.
 
-                            p = (s+d*earth).length();
-                            ph = p/2.0;
-                            phsq = ph*ph;
-                            rd = rlens1*d;
+                            p = (s + d * earth).length();
+                            ph = p / 2.0;
+                            phsq = ph * ph;
+                            rd = rlens1 * d;
                             if phsq > 25.0 * rd {
-                                pd = p + rd/p;
+                                pd = p + rd / p;
                             } else {
                                 pd = ph + (phsq + rd).sqrt();
                             }
-                            mag = pd*pd/(pd-ph)/ph/4.0;
+                            mag = pd * pd / (pd - ph) / ph / 4.0;
                         }
                     }
 
                     if beam_factor2 != 0.0 {
-                        vx = -vfac*spin2*point.position.y;
-                        vy = vfac*(spin2*(point.position.x - 1.0) + 1.0 - x_cofm);
-                        vr = -(earth.x*vx + earth.y*vy);
-                        vn = point.direction.x*vx + point.direction.y*vy;
-                        mud = mu - mu*vr - vn;
-                        ssum2 += mu * mag * (point.flux as f64) * ldc2.imu(mud) * (1.0 - beam_factor2*vr);
+                        vx = -vfac * spin2 * point.position.y;
+                        vy = vfac * (spin2 * (point.position.x - 1.0) + 1.0 - x_cofm);
+                        vr = -(earth.x * vx + earth.y * vy);
+                        vn = point.direction.x * vx + point.direction.y * vy;
+                        mud = mu - mu * vr - vn;
+                        ssum2 += mu
+                            * mag
+                            * (point.flux as f64)
+                            * ldc2.imu(mud)
+                            * (1.0 - beam_factor2 * vr);
                     } else {
                         ssum2 += mu * mag * (point.flux as f64) * ldc2.imu(mu);
                     }
@@ -190,16 +182,13 @@ pub fn comp_light(
             }
         }
 
-        ssum += gint.scale2(phi)*ssum2;
+        ssum += gint.scale2(phi) * ssum2;
 
-        sum = sum + wgt*ssum
-
-
+        sum += wgt * ssum
     }
-    
-    return sum/(1.max(n_div-1) as f64);
-}
 
+    sum / (1.max(n_div - 1) as f64)
+}
 
 pub fn comp_star1(
     iangle: f64,
@@ -212,12 +201,11 @@ pub fn comp_star1(
     vscale: f64,
     gint: &Ginterp,
     star1f: &Vec<Point>,
-    star1c: &Vec<Point>
+    star1c: &Vec<Point>,
 ) -> f64 {
-
-    let x_cofm: f64 = q/(1.0+q);
+    let x_cofm: f64 = q / (1.0 + q);
     let (sini, cosi) = iangle.to_radians().sin_cos();
-    let vfac: f64 = vscale/(C/1.0e3);
+    let vfac: f64 = vscale / (C / 1.0e3);
 
     let mut earth: Vec3;
     let mut sum = 0.0;
@@ -231,16 +219,15 @@ pub fn comp_star1(
     let mut mu: f64;
     let mut mud: f64;
     let mut ptype: i32;
-    
+
     let mut ssum: f64;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -249,15 +236,11 @@ pub fn comp_star1(
         }
 
         earth = roche::set_earth(cosi, sini, phi);
-        
+
         // Define the grid to use
         ptype = gint.interp_type(phi);
-        let star1:&Vec<Point> = if ptype == 1 {
-            star1f
-        } else {
-            star1c
-        };
-        
+        let star1: &Vec<Point> = if ptype == 1 { star1f } else { star1c };
+
         ssum = 0.0;
         let phi_normed: f64 = phi - phi.floor();
         // star 1
@@ -266,12 +249,13 @@ pub fn comp_star1(
                 mu = earth.dot(&point.direction);
                 if ldc1.see(mu) {
                     if beam_factor1 != 0.0 {
-                        vx = -vfac*point.position.y;
-                        vy = vfac*(point.position.x-x_cofm);
-                        vr = -(earth.x*vx + earth.y*vy);
-                        vn = point.direction.x*vx + point.direction.y*vy;
-                        mud = mu - mu*vr - vn;
-                        ssum += mu * (point.flux as f64) * ldc1.imu(mud) * (1.0 - beam_factor1*vr);
+                        vx = -vfac * point.position.y;
+                        vy = vfac * (point.position.x - x_cofm);
+                        vr = -(earth.x * vx + earth.y * vy);
+                        vn = point.direction.x * vx + point.direction.y * vy;
+                        mud = mu - mu * vr - vn;
+                        ssum +=
+                            mu * (point.flux as f64) * ldc1.imu(mud) * (1.0 - beam_factor1 * vr);
                     } else {
                         ssum += mu * (point.flux as f64) * ldc1.imu(mu);
                     }
@@ -280,13 +264,10 @@ pub fn comp_star1(
         }
 
         sum += wgt * gint.scale1(phi) * ssum;
-    
     }
 
-    return sum/(1.max(n_div-1) as f64);
-
+    sum / (1.max(n_div - 1) as f64)
 }
-
 
 pub fn comp_star2(
     iangle: f64,
@@ -301,12 +282,11 @@ pub fn comp_star2(
     rlens1: f64,
     gint: &Ginterp,
     star2f: &Vec<Point>,
-    star2c: &Vec<Point>
+    star2c: &Vec<Point>,
 ) -> f64 {
-
-    let x_cofm: f64 = q/(1.0+q);
+    let x_cofm: f64 = q / (1.0 + q);
     let (sini, cosi) = iangle.to_radians().sin_cos();
-    let vfac: f64 = vscale/(C/1.0e3);
+    let vfac: f64 = vscale / (C / 1.0e3);
 
     let mut earth: Vec3;
     let mut sum: f64 = 0.0;
@@ -328,16 +308,15 @@ pub fn comp_star2(
     let mut mag: f64;
     let mut rd: f64;
     let mut ptype: i32;
-    
+
     let mut ssum: f64;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -346,15 +325,11 @@ pub fn comp_star2(
         }
 
         earth = roche::set_earth(cosi, sini, phi);
-        
+
         // Define the grid to use
         ptype = gint.interp_type(phi);
-        let star2:&Vec<Point> = if ptype == 3 {
-            star2f
-        } else {
-            star2c
-        };
-        
+        let star2: &Vec<Point> = if ptype == 3 { star2f } else { star2c };
+
         ssum = 0.0;
         let phi_normed: f64 = phi - phi.floor();
         // star 2
@@ -362,7 +337,6 @@ pub fn comp_star2(
             if point.is_visible_phase_normed(phi_normed) {
                 mu = earth.dot(&point.direction);
                 if ldc2.see(mu) {
-
                     // Account for magnifying effect of gravitational lensing here
                     mag = 1.0;
                     if glens1 {
@@ -381,26 +355,30 @@ pub fn comp_star2(
                             // save time by avoiding square root if
                             // possible.
 
-                            p = (s+d*earth).length();
-                            ph = p/2.0;
-                            phsq = ph*ph;
-                            rd = rlens1*d;
+                            p = (s + d * earth).length();
+                            ph = p / 2.0;
+                            phsq = ph * ph;
+                            rd = rlens1 * d;
                             if phsq > 25.0 * rd {
-                                pd = p + rd/p;
+                                pd = p + rd / p;
                             } else {
                                 pd = ph + (phsq + rd).sqrt();
                             }
-                            mag = pd*pd/(pd-ph)/ph/4.0;
+                            mag = pd * pd / (pd - ph) / ph / 4.0;
                         }
                     }
 
                     if beam_factor2 != 0.0 {
-                        vx = -vfac*point.position.y;
-                        vy = vfac*(point.position.x-x_cofm);
-                        vr = -(earth.x*vx + earth.y*vy);
-                        vn = point.direction.x*vx + point.direction.y*vy;
-                        mud = mu - mu*vr - vn;
-                        ssum += mu * mag * (point.flux as f64) * ldc2.imu(mud) * (1.0 - beam_factor2*vr);
+                        vx = -vfac * point.position.y;
+                        vy = vfac * (point.position.x - x_cofm);
+                        vr = -(earth.x * vx + earth.y * vy);
+                        vn = point.direction.x * vx + point.direction.y * vy;
+                        mud = mu - mu * vr - vn;
+                        ssum += mu
+                            * mag
+                            * (point.flux as f64)
+                            * ldc2.imu(mud)
+                            * (1.0 - beam_factor2 * vr);
                     } else {
                         ssum += mu * mag * (point.flux as f64) * ldc2.imu(mu);
                     }
@@ -409,13 +387,10 @@ pub fn comp_star2(
         }
 
         sum += wgt * gint.scale2(phi) * ssum;
-    
     }
 
-    return sum/(1.max(n_div-1) as f64);
-    
+    sum / (1.max(n_div - 1) as f64)
 }
-
 
 pub fn comp_disc(
     iangle: f64,
@@ -424,9 +399,8 @@ pub fn comp_disc(
     phase: f64,
     expose: f64,
     n_div: i32,
-    disc_grid: &Vec<Point>
+    disc_grid: &Vec<Point>,
 ) -> f64 {
-
     let ri = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
 
@@ -438,12 +412,11 @@ pub fn comp_disc(
     let mut wgt;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -459,18 +432,17 @@ pub fn comp_disc(
         for point in disc_grid {
             mu = earth.dot(&point.direction);
             if mu > 0.0 && point.is_visible_phase_normed(phi_normed) {
-                ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
+                ssum += mu
+                    * (point.flux as f64)
+                    * (1.0 - (1.0 - mu) * (lin_limb_disc + quad_limb_disc * (1.0 - mu)));
             }
         }
 
-        sum += wgt*ssum
-
+        sum += wgt * ssum
     }
 
-    return sum/(1.max(n_div-1) as f64);
-
+    sum / (1.max(n_div - 1) as f64)
 }
-
 
 pub fn comp_disc_edge(
     iangle: f64,
@@ -479,9 +451,8 @@ pub fn comp_disc_edge(
     phase: f64,
     expose: f64,
     n_div: i32,
-    disc_edge_grid: &Vec<Point>
+    disc_edge_grid: &Vec<Point>,
 ) -> f64 {
-
     let ri: f64 = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
 
@@ -493,12 +464,11 @@ pub fn comp_disc_edge(
     let mut wgt: f64;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -514,28 +484,25 @@ pub fn comp_disc_edge(
         for point in disc_edge_grid {
             mu = earth.dot(&point.direction);
             if mu > 0.0 && point.is_visible_phase_normed(phi_normed) {
-                ssum += mu * (point.flux as f64) * (1.0 - (1.0-mu)*(lin_limb_disc + quad_limb_disc*(1.0-mu)));
+                ssum += mu
+                    * (point.flux as f64)
+                    * (1.0 - (1.0 - mu) * (lin_limb_disc + quad_limb_disc * (1.0 - mu)));
             }
         }
 
-
-        sum += wgt*ssum
-
+        sum += wgt * ssum
     }
 
-    return sum/(1.max(n_div-1) as f64);
-
+    sum / (1.max(n_div - 1) as f64)
 }
-
 
 pub fn comp_bright_spot(
     iangle: f64,
     phase: f64,
     expose: f64,
     n_div: i32,
-    bright_spot_grid: &Vec<Point>
+    bright_spot_grid: &Vec<Point>,
 ) -> f64 {
-
     let ri = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
 
@@ -547,12 +514,11 @@ pub fn comp_bright_spot(
     let mut wgt;
 
     for div in 0..n_div {
-
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose*(div as f64 - (n_div as f64 - 1.0)/2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -567,14 +533,12 @@ pub fn comp_bright_spot(
         for point in bright_spot_grid {
             mu = earth.dot(&point.direction);
             if mu > 0.0 && point.is_visible(phi) {
-                ssum += mu*(point.flux as f64);
+                ssum += mu * (point.flux as f64);
             }
         }
 
-        sum += wgt*ssum
-
+        sum += wgt * ssum
     }
 
-    return sum/(1.max(n_div-1) as f64);
-
+    sum / (1.max(n_div - 1) as f64)
 }

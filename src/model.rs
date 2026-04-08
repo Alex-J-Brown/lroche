@@ -1,17 +1,16 @@
+use pyo3::prelude::*;
+use pyo3::types::PyAny;
+use roche::{C, x_l1_1, x_l1_2};
+use serde::{Deserialize, Serialize};
+use serde_pyobject::from_pyobject;
 use std::collections::HashMap;
+use std::f64::consts::PI;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::Path;
-use std::f64::consts::PI;
-use serde::{Deserialize, Serialize};
-use pyo3::prelude::*;
-use serde_pyobject::from_pyobject;
-use pyo3::types::PyAny;
 
-use crate::pparam::{Pparam, PparamPartial};
 use crate::ldc::{LDC, LDCType};
-
-
+use crate::pparam::{Pparam, PparamPartial};
 
 macro_rules! apply_update {
     ($self:ident, $upd:ident, {
@@ -59,13 +58,11 @@ macro_rules! apply_update {
     };
 }
 
-
 #[derive(Debug)]
 pub enum Entry {
     Param(Pparam),
     Scalar(String),
 }
-
 
 #[derive(Deserialize)]
 #[serde(untagged)]
@@ -74,7 +71,6 @@ pub enum PparamUpdate {
     Partial(PparamPartial),
     Value(f64),
 }
-
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -189,7 +185,7 @@ pub struct ModelUpdate {
     pub opaque: Option<bool>,
     pub add_spot: Option<bool>,
     pub nspot: Option<u32>,
-    pub iscale: Option<bool>
+    pub iscale: Option<bool>,
 }
 
 impl ModelUpdate {
@@ -242,8 +238,6 @@ impl ModelUpdate {
         || self.nspot.is_some()
     }
 }
-
-
 
 #[pyclass(skip_from_py_object)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -359,9 +353,8 @@ pub struct Model {
     pub opaque: bool,
     pub add_spot: bool,
     pub nspot: u32,
-    pub iscale: bool
+    pub iscale: bool,
 }
-
 
 impl Default for Model {
     fn default() -> Self {
@@ -476,14 +469,12 @@ impl Default for Model {
             opaque: default_false(),
             add_spot: default_false(),
             nspot: default_zero(),
-            iscale: default_false()
+            iscale: default_false(),
         }
     }
 }
 
-
 impl Model {
-
     pub fn from_map(map: HashMap<String, Entry>) -> Result<Self, String> {
         Ok(Self {
             // Pparams
@@ -527,8 +518,8 @@ impl Model {
             texp_disc: get_p(&map, "texp_disc")?,
             lin_limb_disc: get_p(&map, "lin_limb_disc")?,
             quad_limb_disc: get_p(&map, "quad_limb_disc")?,
-            temp_edge: get_p(&map, "temp_edge").unwrap_or(Pparam::default()),
-            absorb_edge: get_p(&map, "absorb_edge").unwrap_or(Pparam::default()),
+            temp_edge: get_p(&map, "temp_edge").unwrap_or_default(),
+            absorb_edge: get_p(&map, "absorb_edge").unwrap_or_default(),
             radius_spot: get_p(&map, "radius_spot")?,
             length_spot: get_p(&map, "length_spot")?,
             height_spot: get_p(&map, "height_spot")?,
@@ -540,36 +531,36 @@ impl Model {
             tilt_spot: get_p(&map, "tilt_spot")?,
             cfrac_spot: get_p(&map, "cfrac_spot")?,
             
-            stsp11_long: get_p(&map, "stsp11_long").unwrap_or(Pparam::default()),
-            stsp11_lat: get_p(&map, "stsp11_lat").unwrap_or(Pparam::default()),
-            stsp11_fwhm: get_p(&map, "stsp11_fwhm").unwrap_or(Pparam::default()),
-            stsp11_tcen: get_p(&map, "stsp11_tcen").unwrap_or(Pparam::default()),
+            stsp11_long: get_p(&map, "stsp11_long").unwrap_or_default(),
+            stsp11_lat: get_p(&map, "stsp11_lat").unwrap_or_default(),
+            stsp11_fwhm: get_p(&map, "stsp11_fwhm").unwrap_or_default(),
+            stsp11_tcen: get_p(&map, "stsp11_tcen").unwrap_or_default(),
             
-            stsp12_long: get_p(&map, "stsp12_long").unwrap_or(Pparam::default()),
-            stsp12_lat: get_p(&map, "stsp12_lat").unwrap_or(Pparam::default()),
-            stsp12_fwhm: get_p(&map, "stsp12_fwhm").unwrap_or(Pparam::default()),
-            stsp12_tcen: get_p(&map, "stsp12_tcen").unwrap_or(Pparam::default()),
+            stsp12_long: get_p(&map, "stsp12_long").unwrap_or_default(),
+            stsp12_lat: get_p(&map, "stsp12_lat").unwrap_or_default(),
+            stsp12_fwhm: get_p(&map, "stsp12_fwhm").unwrap_or_default(),
+            stsp12_tcen: get_p(&map, "stsp12_tcen").unwrap_or_default(),
 
-            stsp13_long: get_p(&map, "stsp13_long").unwrap_or(Pparam::default()),
-            stsp13_lat: get_p(&map, "stsp13_lat").unwrap_or(Pparam::default()),
-            stsp13_fwhm: get_p(&map, "stsp13_fwhm").unwrap_or(Pparam::default()),
-            stsp13_tcen: get_p(&map, "stsp13_tcen").unwrap_or(Pparam::default()),
+            stsp13_long: get_p(&map, "stsp13_long").unwrap_or_default(),
+            stsp13_lat: get_p(&map, "stsp13_lat").unwrap_or_default(),
+            stsp13_fwhm: get_p(&map, "stsp13_fwhm").unwrap_or_default(),
+            stsp13_tcen: get_p(&map, "stsp13_tcen").unwrap_or_default(),
             
-            stsp21_long: get_p(&map, "stsp21_long").unwrap_or(Pparam::default()),
-            stsp21_lat: get_p(&map, "stsp21_lat").unwrap_or(Pparam::default()),
-            stsp21_fwhm: get_p(&map, "stsp21_fwhm").unwrap_or(Pparam::default()),
-            stsp21_tcen: get_p(&map, "stsp21_tcen").unwrap_or(Pparam::default()),
+            stsp21_long: get_p(&map, "stsp21_long").unwrap_or_default(),
+            stsp21_lat: get_p(&map, "stsp21_lat").unwrap_or_default(),
+            stsp21_fwhm: get_p(&map, "stsp21_fwhm").unwrap_or_default(),
+            stsp21_tcen: get_p(&map, "stsp21_tcen").unwrap_or_default(),
 
-            stsp22_long: get_p(&map, "stsp22_long").unwrap_or(Pparam::default()),
-            stsp22_lat: get_p(&map, "stsp22_lat").unwrap_or(Pparam::default()),
-            stsp22_fwhm: get_p(&map, "stsp22_fwhm").unwrap_or(Pparam::default()),
-            stsp22_tcen: get_p(&map, "stsp22_tcen").unwrap_or(Pparam::default()),
+            stsp22_long: get_p(&map, "stsp22_long").unwrap_or_default(),
+            stsp22_lat: get_p(&map, "stsp22_lat").unwrap_or_default(),
+            stsp22_fwhm: get_p(&map, "stsp22_fwhm").unwrap_or_default(),
+            stsp22_tcen: get_p(&map, "stsp22_tcen").unwrap_or_default(),
 
-            uesp_long1: get_p(&map, "uesp_long1").unwrap_or(Pparam::default()),
-            uesp_long2: get_p(&map, "uesp_long2").unwrap_or(Pparam::default()),
-            uesp_lathw: get_p(&map, "uesp_lathw").unwrap_or(Pparam::default()),
-            uesp_taper: get_p(&map, "uesp_taper").unwrap_or(Pparam::default()),
-            uesp_temp: get_p(&map, "uesp_temp").unwrap_or(Pparam::default()),
+            uesp_long1: get_p(&map, "uesp_long1").unwrap_or_default(),
+            uesp_long2: get_p(&map, "uesp_long2").unwrap_or_default(),
+            uesp_lathw: get_p(&map, "uesp_lathw").unwrap_or_default(),
+            uesp_taper: get_p(&map, "uesp_taper").unwrap_or_default(),
+            uesp_temp: get_p(&map, "uesp_temp").unwrap_or_default(),
             
             // Scalars
             delta_phase: get_f64(&map, "delta_phase")?,
@@ -619,23 +610,36 @@ impl Model {
     pub fn get_r1r2(&self) -> (f64, f64) {
         if self.use_radii {
             (self.r1.value, self.r2.value)
-        }
-        else {
+        } else {
             let sini = self.iangle.value.to_radians().sin();
-            let r2pr1 = (1. - (sini * (2.*PI*self.cphi4.value).cos()).powi(2)).sqrt();
-            let r2mr1 = (1. - (sini * (2.*PI*self.cphi3.value).cos()).powi(2)).sqrt();
-            let rr1 = (r2pr1 - r2mr1)/2.;
-            let rr2 = (r2pr1 + r2mr1)/2.;
+            let r2pr1 = (1. - (sini * (2. * PI * self.cphi4.value).cos()).powi(2)).sqrt();
+            let r2mr1 = (1. - (sini * (2. * PI * self.cphi3.value).cos()).powi(2)).sqrt();
+            let rr1 = (r2pr1 - r2mr1) / 2.;
+            let rr2 = (r2pr1 + r2mr1) / 2.;
             (rr1, rr2)
         }
     }
     
     pub fn get_ldc1(&self) -> LDC {
-        LDC::with_params(self.ldc1_1.value, self.ldc1_2.value, self.ldc1_3.value, self.ldc1_4.value, self.mucrit1, self.limb1)
+        LDC::with_params(
+            self.ldc1_1.value,
+            self.ldc1_2.value,
+            self.ldc1_3.value,
+            self.ldc1_4.value,
+            self.mucrit1,
+            self.limb1,
+        )
     }
 
     pub fn get_ldc2(&self) -> LDC {
-        LDC::with_params(self.ldc2_1.value, self.ldc2_2.value, self.ldc2_3.value, self.ldc2_4.value, self.mucrit2, self.limb2)
+        LDC::with_params(
+            self.ldc2_1.value,
+            self.ldc2_2.value,
+            self.ldc2_3.value,
+            self.ldc2_4.value,
+            self.mucrit2,
+            self.limb2,
+        )
     }
 
     pub fn apply_update(&mut self, updated_model: ModelUpdate) {
@@ -756,15 +760,12 @@ impl Model {
     }
 }
 
-
 #[pymethods]
 impl Model {
-
     #[new]
     fn new() -> Self {
         Model::default()
     }
-
 
     fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
@@ -772,18 +773,15 @@ impl Model {
         Ok(())
     }
 
-
     fn to_dict<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         Ok(serde_pyobject::to_pyobject(py, self)?)
     }
-
 
     fn __repr__(&self) -> PyResult<String> {
         serde_json::to_string_pretty(self)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
 }
-
 
 fn default_pparam() -> Pparam {
     Pparam::default()
@@ -792,7 +790,6 @@ fn default_pparam() -> Pparam {
 fn default_delta_phase() -> f64 {
     1.0e-7_f64   
 }
-
 
 fn default_zero() -> u32 {
     0_u32
@@ -817,8 +814,6 @@ fn default_claret() -> LDCType {
 fn default_false() -> bool {
     false
 }
-
-
 
 fn parse_entry(line: &str) -> Option<(String, Entry)> {
     let line = line.trim();
@@ -846,17 +841,18 @@ fn parse_entry(line: &str) -> Option<(String, Entry)> {
     }
 }
 
-
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
 
-
 fn load_entries(path: &str) -> Result<HashMap<String, Entry>, String> {
     let mut map = HashMap::new();
 
-    for line in read_lines(path).map_err(|e| e.to_string())?.map_while(Result::ok) {
+    for line in read_lines(path)
+        .map_err(|e| e.to_string())?
+        .map_while(Result::ok)
+    {
         if let Some((name, entry)) = parse_entry(&line) {
             map.insert(name, entry);
         }
@@ -865,14 +861,12 @@ fn load_entries(path: &str) -> Result<HashMap<String, Entry>, String> {
     Ok(map)
 }
 
-
 fn get_p(map: &HashMap<String, Entry>, k: &str) -> Result<Pparam, String> {
     match map.get(k) {
         Some(Entry::Param(p)) => Ok(*p),
         _ => Err(format!("missing Pparam: {}", k)),
     }
 }
-
 
 fn get_f64(map: &HashMap<String, Entry>, k: &str) -> Result<f64, String> {
     match map.get(k) {
@@ -881,14 +875,12 @@ fn get_f64(map: &HashMap<String, Entry>, k: &str) -> Result<f64, String> {
     }
 }
 
-
 fn get_u32(map: &HashMap<String, Entry>, k: &str) -> Result<u32, String> {
     match map.get(k) {
         Some(Entry::Scalar(v)) => v.parse().map_err(|_| format!("bad u32: {}", k)),
         _ => Err(format!("missing u32: {}", k)),
     }
 }
-
 
 fn get_bool(map: &HashMap<String, Entry>, k: &str) -> Result<bool, String> {
     match map.get(k) {
@@ -900,7 +892,6 @@ fn get_bool(map: &HashMap<String, Entry>, k: &str) -> Result<bool, String> {
         _ => Err(format!("missing bool: {}", k)),
     }
 }
-
 
 fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
     match map.get(k) {

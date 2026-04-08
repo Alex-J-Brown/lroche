@@ -1,6 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use serde::{Serialize, Deserialize};
-
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -9,9 +8,8 @@ pub struct Pparam {
     pub range: f64,
     pub dstep: f64,
     pub vary: bool,
-    pub defined: bool
+    pub defined: bool,
 }
-
 
 impl Default for Pparam {
     fn default() -> Self {
@@ -20,11 +18,10 @@ impl Default for Pparam {
             range: 0.0,
             dstep: 0.0,
             vary: false,
-            defined: false
+            defined: false,
         }
     }
 }
-
 
 impl FromStr for Pparam {
     type Err = String;
@@ -33,16 +30,43 @@ impl FromStr for Pparam {
         let mut fields = s.split_whitespace();
         let _name: &str = fields.next().ok_or("missing value")?;
         let _equals: &str = fields.next().ok_or("missing value")?;
-        let value = fields.next().ok_or("missing value")?.parse().map_err(|_| "bad value")?;
-        let range = fields.next().ok_or("missing range")?.parse().map_err(|_| "bad range")?;
-        let dstep = fields.next().ok_or("missing dstep")?.parse().map_err(|_| "bad dstep")?;
-        let vary = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
-        let defined = fields.next().ok_or("missing vary")?.parse::<i32>().map_err(|_| "bad vary")? != 0;
+        let value = fields
+            .next()
+            .ok_or("missing value")?
+            .parse()
+            .map_err(|_| "bad value")?;
+        let range = fields
+            .next()
+            .ok_or("missing range")?
+            .parse()
+            .map_err(|_| "bad range")?;
+        let dstep = fields
+            .next()
+            .ok_or("missing dstep")?
+            .parse()
+            .map_err(|_| "bad dstep")?;
+        let vary = fields
+            .next()
+            .ok_or("missing vary")?
+            .parse::<i32>()
+            .map_err(|_| "bad vary")?
+            != 0;
+        let defined = fields
+            .next()
+            .ok_or("missing vary")?
+            .parse::<i32>()
+            .map_err(|_| "bad vary")?
+            != 0;
 
-        Ok(Pparam { value, range, dstep, vary: vary, defined: defined})
+        Ok(Pparam {
+            value,
+            range,
+            dstep,
+            vary,
+            defined,
+        })
     }
 }
-
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -51,5 +75,5 @@ pub struct PparamPartial {
     pub range: Option<f64>,
     pub dstep: Option<f64>,
     pub vary: Option<bool>,
-    pub defined: Option<bool>
+    pub defined: Option<bool>,
 }
