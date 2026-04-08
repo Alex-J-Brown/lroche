@@ -1,7 +1,7 @@
 use std::panic;
 use std::f64::consts::FRAC_PI_2;
 use crate::model::Model;
-use rust_roche::{self, RocheContext, Star, Vec3, Etype, Point};
+use roche::{self, Etype, Point, RocheContext, Star, Vec3, errors::RocheError};
 use crate::set_star_grid::star_eclipse;
 
 //
@@ -23,21 +23,21 @@ use crate::set_star_grid::star_eclipse;
 //
 
 
-pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
+pub fn set_bright_spot_grid(model: &Model) -> Result<Vec<Point>, RocheError> {
 
     let (mut r1, mut r2) = model.get_r1r2();
 
-    let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
-    let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value);
+    let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value)?;
+    let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value)?;
 
-    let rl1 = roche_context1.x_l1_asyncronous();
+    let rl1: f64 = roche_context1.x_l1_asyncronous()?;
     if r1 < 0.0 {
         r1 = rl1;
     } else if r1 > rl1 {
         panic!("Primary star is larger than its Roche Lobe!");
     }
 
-    let rl2 = 1.0 - roche_context2.x_l1_asyncronous();
+    let rl2: f64 = 1.0 - roche_context2.x_l1_asyncronous()?;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
@@ -47,8 +47,8 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
     let ffac1: f64 = r1/rl1;
     let ffac2: f64 = r2/rl2;
 
-    let (mut bspot, mut v) = rust_roche::strinit(model.q.value);
-    rust_roche::stradv(model.q.value, &mut bspot, &mut v, model.radius_spot.value, 1.0e-10, 1.0e-3);
+    let (mut bspot, mut v) = roche::strinit(model.q.value)?;
+    roche::stradv(model.q.value, &mut bspot, &mut v, model.radius_spot.value, 1.0e-10, 1.0e-3);
 
     // Now measure bright-spot angle relative to tangent to disc edge so we need
     // to add 90 + angle of bright-spot to the input value.
@@ -79,7 +79,7 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
 
     // This is where the spot height gets in
     let area: f64 = sfac*model.length_spot.value*model.height_spot.value/(model.nspot as f64-1.0);
-    let bright: f64 = rust_roche::planck(model.wavelength, model.temp_spot.value);
+    let bright: f64 = roche::planck(model.wavelength, model.temp_spot.value);
 
     for i in 0..model.nspot as usize {
 
@@ -89,14 +89,14 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
 
         eclipses.clear();
         if model.eclipse1 {
-            star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses);
+            star_eclipse(&roche_context1, r1, ffac1, model.iangle.value, &posn, model.delta_phase, model.roche1, Star::Primary, &mut eclipses)?;
         }
         if model.eclipse2 {
-            star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses);
+            star_eclipse(&roche_context2, r2, ffac2, model.iangle.value, &posn, model.delta_phase, model.roche2, Star::Secondary, &mut eclipses)?;
         }
 
         // Factor here is adjusted to equal 1 at its peak
-        let modified_brightness = bright * (dist/b_max).powf(model.expon_spot.value) * (( (model.expon_spot.value/model.epow_spot.value) - dist.powf(model.epow_spot.value) ).exp());
+        let modified_brightness: f64 = bright * (dist/b_max).powf(model.expon_spot.value) * (( (model.expon_spot.value/model.epow_spot.value) - dist.powf(model.epow_spot.value) ).exp());
 
         let flux_tilt: f32 = (modified_brightness * (1.0 - model.cfrac_spot.value) * area) as f32; 
         let flux_parallel: f32 = (modified_brightness * model.cfrac_spot.value * area) as f32; 
@@ -108,6 +108,6 @@ pub fn set_bright_spot_grid(model: &Model) -> Vec<Point> {
 
 
     }
-    bright_spot_grid
+    Ok(bright_spot_grid)
 }
 

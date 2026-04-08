@@ -3,8 +3,9 @@ use std::f64::consts::TAU;
 use rayon::prelude::*;
 use numpy::{PyReadonlyArray1, IntoPyArray, PyArray1};
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyDictMethods, PyFloat};
-use rust_roche::{self, Star, Etype, Point, disc_eclipse};
+use pyo3::types::{PyDict, PyDictMethods};
+use roche::{self, Star, Etype, Point, disc_eclipse};
+use roche::errors::RocheError;
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_radius::comp_radius;
@@ -96,7 +97,7 @@ impl BinaryModel {
     //     let mut star2_coarse_grid: Vec<Point>;
 
     //     let (r1, mut r2) = model.get_r1r2();
-    //     let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
+    //     let rl2: f64 = 1.0 - roche::x_l1_2(model.q.value, model.spin2.value);
     //     if r2 < 0.0 {
     //         r2 = rl2;
     //     } else if r2 > rl2 {
@@ -169,9 +170,7 @@ impl BinaryModel {
             bright_spot_grid,
             gint,
             rlens1
-        ) = build_grids(&model)
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
-            .unwrap();
+        ) = build_grids(&model)?;
         
         Ok(Self {
             star1_coarse_grid,
@@ -203,11 +202,9 @@ impl BinaryModel {
                 self.bright_spot_grid,
                 self.gint,
                 self.rlens1
-            ) = build_grids(&self.model)
-                .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))
-                .unwrap();
+            ) = build_grids(&self.model)?;
         } else {
-            self.reset_grid_continuum();
+            self.reset_grid_continuum()?;
         }
         Ok(())
     }
@@ -377,8 +374,8 @@ impl BinaryModel {
 
         
 
-        let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid);
-        let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid);
+        let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid)?;
+        let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
         let rva1: f64 = if self.model.roche1 {
             comp_radius(&self.star1_coarse_grid, Star::Primary)
             } else {
@@ -444,10 +441,10 @@ impl BinaryModel {
     }
 
 
-    fn reset_grid_continuum(&mut self) -> () {
+    fn reset_grid_continuum(&mut self) -> Result<(), RocheError> {
 
         let (r1, mut r2) = self.model.get_r1r2();
-        let rl2: f64 = 1.0 - rust_roche::x_l1_2(self.model.q.value, self.model.spin2.value);
+        let rl2: f64 = 1.0 - roche::x_l1_2(self.model.q.value, self.model.spin2.value)?;
         if r2 < 0.0 {
             r2 = rl2;
         } else if r2 > rl2 {
@@ -458,8 +455,8 @@ impl BinaryModel {
         let ldc2: LDC = self.model.get_ldc2();
 
 
-        set_star_continuum(&self.model, &mut self.star1_fine_grid, &mut self.star2_fine_grid);
-        set_star_continuum(&self.model, &mut self.star1_coarse_grid, &mut self.star2_coarse_grid);
+        set_star_continuum(&self.model, &mut self.star1_fine_grid, &mut self.star2_fine_grid)?;
+        set_star_continuum(&self.model, &mut self.star1_coarse_grid, &mut self.star2_coarse_grid)?;
 
         let copy2: bool = (self.model.nlat2f == self.model.nlat2c) &&
             (!self.model.npole || r1 >= r2 || (self.model.nlatfill == 0 && self.model.nlngfill == 0));
@@ -503,8 +500,9 @@ impl BinaryModel {
 
         if self.model.add_spot {
 
-            self.bright_spot_grid = set_bright_spot_grid(&self.model);
+            self.bright_spot_grid = set_bright_spot_grid(&self.model)?;
         }
+        Ok(())
 
     }
 
@@ -512,28 +510,28 @@ impl BinaryModel {
 }
 
 
-fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Ginterp, f64), String> {
+fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Vec<Point>, Ginterp, f64), RocheError> {
 
-    let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true);
-    let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true);
+    let mut star1_fine_grid = set_star_grid(&model, Star::Primary, true)?;
+    let mut star2_fine_grid = set_star_grid(&model, Star::Secondary, true)?;
     let mut star1_coarse_grid: Vec<Point>;
     let mut star2_coarse_grid: Vec<Point>;
 
     let (r1, mut r2) = model.get_r1r2();
-    let rl2: f64 = 1.0 - rust_roche::x_l1_2(model.q.value, model.spin2.value);
+    let rl2: f64 = 1.0 - roche::x_l1_2(model.q.value, model.spin2.value)?;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
         panic!("Secondary is larger than Roche Lobe.")
     }
     
-    set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid);
+    set_star_continuum(&model, &mut star1_fine_grid, &mut star2_fine_grid)?;
     
     
     if model.nlat1f == model.nlat1c {
         star1_coarse_grid = star1_fine_grid.clone();
     } else {
-        star1_coarse_grid = set_star_grid(&model, Star::Primary, false);
+        star1_coarse_grid = set_star_grid(&model, Star::Primary, false)?;
     }
     
     let copy2: bool = (model.nlat2f == model.nlat2c) &&
@@ -542,11 +540,11 @@ fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec
     if copy2 {
         star2_coarse_grid = star2_fine_grid.clone();
     } else {
-        star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)
+        star2_coarse_grid = set_star_grid(&model, Star::Secondary, false)?
     }
     
     if model.nlat1c != model.nlat1f || !copy2 {
-        set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid);
+        set_star_continuum(&model, &mut star1_coarse_grid, &mut star2_coarse_grid)?;
     }
     
     let mut disc_grid: Vec<Point> = vec![];
@@ -588,8 +586,8 @@ fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec
     }
 
     if model.add_disc {
-        disc_grid = set_disc_grid(&model);
-        disc_edge_grid = set_disc_edge_grid(&model, true, false);
+        disc_grid = set_disc_grid(&model)?;
+        disc_edge_grid = set_disc_edge_grid(&model, true, false)?;
 
         let rdisc1 = if model.rdisc1.value > 0.0 {
             model.rdisc1.value
@@ -605,25 +603,25 @@ fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec
         let mut eclipses: Etype;
         if model.opaque {
             for point in &mut star1_fine_grid {
-                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position)?;
                 for i in 0..eclipses.len() {
                     point.eclipse.push(eclipses[i]);
                 }
             }
             for point in &mut star1_coarse_grid {
-                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position)?;
                 for i in 0..eclipses.len() {
                     point.eclipse.push(eclipses[i]);
                 }
             }
             for point in &mut star2_fine_grid {
-                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position)?;
                 for i in 0..eclipses.len() {
                     point.eclipse.push(eclipses[i]);
                 }
             }
             for point in &mut star2_coarse_grid {
-                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position);
+                eclipses = disc_eclipse(model.iangle.value, rdisc1, rdisc2, model.beta_disc.value, model.height_disc.value, &point.position)?;
                 for i in 0..eclipses.len() {
                     point.eclipse.push(eclipses[i]);
                 }
@@ -641,7 +639,7 @@ fn build_grids(model: &Model) -> Result<(Vec<Point>, Vec<Point>, Vec<Point>, Vec
 
     if model.add_spot {
 
-        bright_spot_grid = set_bright_spot_grid(&model);
+        bright_spot_grid = set_bright_spot_grid(&model)?;
     }
     
     Ok((star1_coarse_grid,
@@ -731,11 +729,4 @@ pub fn chisq_log_prob(flux: &[f64], flux_err: &[f64], weight: Option<&[f64]>, mo
         log_prob += -0.5*(chisq_i + (TAU*flux_err[i]*flux_err[i]).ln())
     }
     (chisq_sum, log_prob)
-}
-
-
-#[pyfunction]
-pub fn x_l1(q: Bound<'_, PyFloat>) -> PyResult<f64> {
-    let xl1 = rust_roche::x_l1(q.extract::<f64>().unwrap());
-    Ok(xl1)
 }

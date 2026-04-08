@@ -1,4 +1,5 @@
-use rust_roche::{RocheContext, Star, Vec3, Point};
+use roche::errors::RocheError;
+use roche::{RocheContext, Star, Vec3, Point};
 use crate::model::Model;
 use crate::constants::DAY;
 use std::f64::consts::TAU;
@@ -13,7 +14,7 @@ use std::f64::consts::TAU;
 //  \return the value of logg
 // 
 
-pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
+pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> Result<f64, RocheError> {
 
     // Calculate the unit scaling factor to get CGS gravity
     let gm1m2: f64 = (1000.0*model.velocity_scale.value).powi(3) * model.tperiod * DAY / TAU;
@@ -23,7 +24,7 @@ pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
 
     // radius stuff
     let (r1, _) = model.get_r1r2();
-    let rochecontext1: RocheContext = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
+    let rochecontext1: RocheContext = RocheContext::new(model.q.value, Star::Primary, model.spin1.value)?;
     let rl1: f64 = rochecontext1.x_l1;
 
     // calculate the reference gravity in CGS units
@@ -31,10 +32,10 @@ pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
 
         let acc: f64 = model.delta_phase/10.0;
         let ffac1: f64 = r1/rl1;
-        let (rref1, pref1) = rochecontext1.ref_sphere(ffac1);
+        let (rref1, pref1) = rochecontext1.ref_sphere(ffac1)?;
 
         let dirn = Vec3::new(-1.0, 0.0, 0.0);
-        (_, _, _, gref) = rochecontext1.face(dirn, rref1, pref1, acc);
+        (_, _, _, gref) = rochecontext1.face(dirn, rref1, pref1, acc)?;
         gref *= gscale;
     } else {
         gref = gscale/(1.0 + model.q.value)/(r1*r1);
@@ -51,9 +52,9 @@ pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
         sumf += point.flux as f64;
     }
     if (gref > 0.0) & (sumfg > 0.0) & (sumf > 0.0) {
-        (gref*sumfg/sumf).log10()
+        Ok((gref*sumfg/sumf).log10())
     } else {
-        0.0
+        Ok(0.0)
     }
 
 }
@@ -69,7 +70,7 @@ pub fn comp_gravity1(model: &Model, star1_fine_grid: &Vec<Point>) -> f64 {
 //  \return the value of logg
 // 
 
-pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> f64 {
+pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> Result<f64, RocheError> {
 
     // Calculate the unit scaling factor to get CGS gravity
     let gm1m2: f64 = (1000.0*model.velocity_scale.value).powi(3) * model.tperiod * DAY / TAU;
@@ -79,7 +80,7 @@ pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> f64 {
 
     // radius stuff
     let (_, mut r2) = model.get_r1r2();
-    let rochecontext2: RocheContext = RocheContext::new(model.q.value, Star::Secondary, model.spin1.value);
+    let rochecontext2: RocheContext = RocheContext::new(model.q.value, Star::Secondary, model.spin1.value)?;
     let rl2: f64 = 1.0 - rochecontext2.x_l1;
     if model.r2.value < 0.0 {
         r2 = rl2;
@@ -90,10 +91,10 @@ pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> f64 {
 
         let acc: f64 = model.delta_phase/10.0;
         let ffac2: f64 = r2/rl2;
-        let (rref2, pref2) = rochecontext2.ref_sphere(ffac2);
+        let (rref2, pref2) = rochecontext2.ref_sphere(ffac2)?;
 
         let dirn = Vec3::new(1.0, 0.0, 0.0);
-        (_, _, _, gref) = rochecontext2.face(dirn, rref2, pref2, acc);
+        (_, _, _, gref) = rochecontext2.face(dirn, rref2, pref2, acc)?;
         gref *= gscale;
     } else {
         gref = gscale*model.q.value/(1.0 + model.q.value)/(r2*r2);
@@ -110,9 +111,9 @@ pub fn comp_gravity2(model: &Model, star2_fine_grid: &Vec<Point>) -> f64 {
         sumf += point.flux as f64;
     }
     if (gref > 0.0) & (sumfg > 0.0) & (sumf > 0.0) {
-        (gref*sumfg/sumf).log10()
+        Ok((gref*sumfg/sumf).log10())
     } else {
-        0.0
+        Ok(0.0)
     }
 
 }

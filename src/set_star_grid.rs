@@ -1,9 +1,10 @@
 use rayon::prelude::*;
+use roche::errors::RocheError;
 use std::panic;
 use std::f64::consts::{PI, TAU, FRAC_PI_2};
 use crate::model::Model;
 use crate::numface::numface;
-use rust_roche::{self, Vec3, Star, RocheContext, Etype, Point};
+use roche::{self, Vec3, Star, RocheContext, Etype, Point};
 use crate::constants;
 
 
@@ -23,7 +24,7 @@ pub fn envelope(rangle: f64, lambda: f64, r1: f64) -> Xy {
 
 
 
-pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
+pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Point>, RocheError> {
 
     let (mut r1, mut r2) = model.get_r1r2();
 
@@ -58,17 +59,17 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
         Star::Secondary => model.lhi,
     };
 
-    let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value);
-    let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value);
+    let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value)?;
+    let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value)?;
 
-    let rl1 = roche_context1.x_l1;
+    let rl1: f64 = roche_context1.x_l1;
     if r1 < 0.0 {
         r1 = rl1;
     } else if r1 > rl1 {
         panic!("set_star_grid: the primary star is larger than its Roche lobe!");
     }
 
-    let rl2 = 1.0 - roche_context2.x_l1;
+    let rl2: f64 = 1.0 - roche_context2.x_l1;
     if r2 < 0.0 {
         r2 = rl2;
     } else if r2 > rl2 {
@@ -101,10 +102,10 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
     
     // Calculate a reference radius and potential for the two stars
     let ffac1: f64 = r1/rl1;
-    let (rref1, pref1) = roche_context1.ref_sphere(ffac1);
+    let (rref1, pref1) = roche_context1.ref_sphere(ffac1)?;
 
     let ffac2: f64 = r2/rl2;
-    let (rref2, pref2) = roche_context2.ref_sphere(ffac2);
+    let (rref2, pref2) = roche_context2.ref_sphere(ffac2)?;
 
     // Compute latitude range over which extra points will be added. Only enabled
     // when setting the secondary grid and when the grid North pole is the genuine
@@ -115,7 +116,7 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
     let mut thehi: f64 = 0.0;
     if infill {
         let rangle: f64 = model.iangle.value.to_radians();
-        let cosi = rangle.cos();
+        let cosi: f64 = rangle.cos();
         let mut ratio = (cosi+r1)/r2;
 
         // Lower latitude value comes from assuming star 1 is seen
@@ -182,10 +183,10 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
     // to ensure a non-zero value. Set to 1 if Roche distortion being ignored.
     if star == Star::Primary && model.roche1 {
         let dirn = Vec3::new(-1.0, 0.0, 0.0);
-        (_posn, _dvec, _rad, gref) = roche_context1.face(dirn, rref1, pref1, acc);
+        (_posn, _dvec, _rad, gref) = roche_context1.face(dirn, rref1, pref1, acc)?;
     } else if star == Star::Secondary && model.roche2 {
         let dirn = Vec3::new(1.0, 0.0, 0.0);
-        (_posn, _dvec, _rad, gref) = roche_context2.face(dirn, rref2, pref2, acc);
+        (_posn, _dvec, _rad, gref) = roche_context2.face(dirn, rref2, pref2, acc)?;
     } else {
         gref = 1.0;
     }
@@ -207,7 +208,7 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Vec<Point> {
         add_faces(&mut star_grid, 0.0, PI, dtheta, 0, 0, model.npole, star, &roche_context1, &roche_context2, model.iangle.value, r1, r2, rref1, rref2, model.roche1, model.roche2, eclipse, gref, pref1, pref2, ffac1, ffac2, model.delta_phase);
     }
 
-    star_grid
+    Ok(star_grid)
 }
 
 
@@ -303,9 +304,9 @@ pub fn add_faces(
             // geometry or not.
 
             if star == Star::Primary && roche1 {
-                (posn, dvec, rad, gravity) = roche_context1.face(dirn, rref1, pref1, acc);
+                (posn, dvec, rad, gravity) = roche_context1.face(dirn, rref1, pref1, acc).unwrap();
             } else if star == Star::Secondary && roche2 {
-                (posn, dvec, rad, gravity) = roche_context2.face(dirn, rref2, pref2, acc);
+                (posn, dvec, rad, gravity) = roche_context2.face(dirn, rref2, pref2, acc).unwrap();
             } else {
 
                 // Ignore Roche distortion
@@ -333,11 +334,11 @@ pub fn add_faces(
 
             if eclipse &&
                 ((star == Star::Primary &&
-                ((roche2 && roche_context2.ingress_egress(ffac2, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-                (!roche2 && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm2, r2, &mut ingress, &mut egress, &mut lam1, &mut lam2)))) ||
+                ((roche2 && roche_context2.ingress_egress(ffac2, iangle, delta, &posn, &mut ingress, &mut egress).unwrap()) ||
+                (!roche2 && roche::sphere_eclipse(cosi, sini, &posn, &cofm2, r2, &mut ingress, &mut egress, &mut lam1, &mut lam2)))) ||
                 (star == Star::Secondary &&
-                ((roche1 && roche_context1.ingress_egress(ffac1, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-                (!roche1 && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm1, r1, &mut ingress, &mut egress, &mut lam1, &mut lam2))))) {
+                ((roche1 && roche_context1.ingress_egress(ffac1, iangle, delta, &posn, &mut ingress, &mut egress).unwrap()) ||
+                (!roche1 && roche::sphere_eclipse(cosi, sini, &posn, &cofm1, r1, &mut ingress, &mut egress, &mut lam1, &mut lam2))))) {
 
                     eclipses.push((ingress, egress));
 
@@ -359,8 +360,8 @@ pub fn add_faces(
 }
 
 
-pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64, posn: &Vec3, delta: f64, roche: bool, star: Star, eclipses: &mut Etype) -> () {
-    let ri = iangle.to_radians();
+pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64, posn: &Vec3, delta: f64, roche: bool, star: Star, eclipses: &mut Etype) -> Result<(), RocheError> {
+    let ri: f64 = iangle.to_radians();
     let (sini, cosi) = ri.sin_cos();
     let cofm = match star {
         Star::Primary => Vec3::cofm1(),
@@ -371,10 +372,11 @@ pub fn star_eclipse(roche_context: &RocheContext, r: f64, ffac: f64, iangle: f64
     let mut ingress: f64 = 0.0;
     let mut egress: f64 = 0.0;
     // let mut eclipses = Etype::new();
-    if (roche && roche_context.ingress_egress(ffac, iangle, delta, &posn, &mut ingress, &mut egress)) ||
-        (!roche && rust_roche::sphere_eclipse(cosi, sini, &posn, &cofm, r, &mut ingress, &mut egress, &mut lam1, &mut lam2)) {
+    if (roche && roche_context.ingress_egress(ffac, iangle, delta, &posn, &mut ingress, &mut egress)?) ||
+        (!roche && roche::sphere_eclipse(cosi, sini, &posn, &cofm, r, &mut ingress, &mut egress, &mut lam1, &mut lam2)) {
         eclipses.push((ingress, egress));
         }
+    Ok(())
 }
 
 

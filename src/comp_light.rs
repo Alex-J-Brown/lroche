@@ -1,6 +1,6 @@
 use crate::constants::C;
 use crate::ginterp::Ginterp;
-use rust_roche::{self, Vec3, Point};
+use roche::{self, Vec3, Point};
 use crate::ldc::LDC;
 
 //
@@ -98,7 +98,7 @@ pub fn comp_light(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
         
         ptype = gint.interp_type(phi);
         let star1:&Vec<Point> = if ptype == 1 {
@@ -248,7 +248,7 @@ pub fn comp_star1(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
         
         // Define the grid to use
         ptype = gint.interp_type(phi);
@@ -345,7 +345,7 @@ pub fn comp_star2(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
         
         // Define the grid to use
         ptype = gint.interp_type(phi);
@@ -451,7 +451,7 @@ pub fn comp_disc(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
         let phi_normed: f64 = phi - phi.floor();
@@ -506,7 +506,7 @@ pub fn comp_disc_edge(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
         let phi_normed: f64 = phi - phi.floor();
@@ -560,7 +560,7 @@ pub fn comp_bright_spot(
             }
         }
 
-        earth = rust_roche::set_earth(cosi, sini, phi);
+        earth = roche::set_earth(cosi, sini, phi);
 
         ssum = 0.0;
         // Bright spot

@@ -1,4 +1,4 @@
-use rust_roche::{Star, Vec3, Point};
+use roche::{Star, Vec3, Point};
 
 //*
 // comp_radius1 computes a volume-averaged scaled radius for star 1.

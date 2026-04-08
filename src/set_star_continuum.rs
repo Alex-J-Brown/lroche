@@ -1,14 +1,14 @@
 use std::f64::consts::PI;
 use crate::constants::EFAC;
 use crate::model::Model;
-use rust_roche::{self, Vec3, Point};
+use roche::{self, Point, Vec3, errors::RocheError};
 
 
-pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec<Point>) -> () {
+pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec<Point>) -> Result<(), RocheError> {
 
     let (mut r1, mut r2) = model.get_r1r2();
 
-    let rl1: f64 = rust_roche::x_l1(model.q.value);
+    let rl1: f64 = roche::x_l1(model.q.value)?;
     if r1 < 0.0 {
         r1 = rl1;
     }
@@ -33,7 +33,7 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
     let gdcbol1: f64 = if model.gdark_bolom1 {
         model.gravity_dark1.value
     } else {
-        model.gravity_dark1.value / rust_roche::dlpdlt(model.wavelength, model.t1.value)
+        model.gravity_dark1.value / roche::dlpdlt(model.wavelength, model.t1.value)
     };
 
 
@@ -166,10 +166,10 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
         }
 
         // At this stage also add in a directly reflected part too
-        let mut flux: f32 = point.area * rust_roche::planck(model.wavelength, temp) as f32;
+        let mut flux: f32 = point.area * roche::planck(model.wavelength, temp) as f32;
         
         if model.mirror {
-            flux += point.area * (geom as f32) * (rust_roche::planck(model.wavelength, model.t2.value.abs()) as f32);
+            flux += point.area * (geom as f32) * (roche::planck(model.wavelength, model.t2.value.abs()) as f32);
         }
 
         point.set_flux(flux);
@@ -182,7 +182,7 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
     let gdcbol2: f64 = if model.gdark_bolom2 {
         model.gravity_dark2.value
     } else {
-        model.gravity_dark2.value / rust_roche::dlpdlt(model.wavelength, model.t2.value.abs())
+        model.gravity_dark2.value / roche::dlpdlt(model.wavelength, model.t2.value.abs())
     };
 
     let is_spot21: bool = model.stsp21_long.defined && model.stsp21_lat.defined &&
@@ -254,15 +254,16 @@ pub fn set_star_continuum(model: &Model, star1: &mut Vec<Point>, star2: &mut Vec
         }
 
         // At this stage also add in a directly reflected part too
-        let mut flux: f32 = point.area * rust_roche::planck(model.wavelength, temp) as f32;
+        let mut flux: f32 = point.area * roche::planck(model.wavelength, temp) as f32;
         
         
         if model.mirror {
-            flux += point.area * (geom as f32) * (rust_roche::planck(model.wavelength, model.t1.value) as f32);
+            flux += point.area * (geom as f32) * (roche::planck(model.wavelength, model.t1.value) as f32);
         }
 
         point.set_flux(flux);
         
         }
+    Ok(())
     }
 

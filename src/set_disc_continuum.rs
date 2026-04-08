@@ -1,5 +1,5 @@
 use std::f64::consts::{FRAC_PI_2, PI};
-use rust_roche::{self, Vec3, Point};
+use roche::{self, Vec3, Point};
 
 // set_disc_continuum computes the face-on brightness of each element of the
 // disc assuming a power law with radius.
@@ -16,7 +16,7 @@ use rust_roche::{self, Vec3, Point};
 pub fn set_disc_continuum(rdisc: f64, tdisc: f64, texp: f64, wave: f64, disc: &mut Vec<Point>) -> () {
 
     // Reference surface brightness
-    let bright: f64 = rust_roche::planck(wave, tdisc);
+    let bright: f64 = roche::planck(wave, tdisc);
 
     for point in disc {
         
@@ -76,6 +76,6 @@ pub fn set_edge_continuum(tedge: f64, r2: f64, t2: f64, absorb: f64, wave: f64, 
             // No irradiation
             temp = tedge;
         }
-        point.set_flux(point.area * rust_roche::planck(wave, temp) as f32);
+        point.set_flux(point.area * roche::planck(wave, temp) as f32);
     }
 }
