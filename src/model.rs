@@ -461,8 +461,8 @@ impl Default for Model {
             gdark_bolom2: default_false(),
             mucrit1: default_zero_f64(),
             mucrit2: default_zero_f64(),
-            limb1: default_claret(),
-            limb2: default_claret(),
+            limb1: default_poly(),
+            limb2: default_poly(),
             mirror: default_false(),
             add_disc: default_false(),
             nrad: default_zero(),
@@ -814,8 +814,8 @@ fn default_true() -> bool {
     true
 }
 
-fn default_claret() -> LDCType {
-    LDCType::Claret
+fn default_poly() -> LDCType {
+    LDCType::Poly
 }
 
 fn default_false() -> bool {
