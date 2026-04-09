@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 
+use crate::ldc::LDCType;
+
 pub mod binary_model;
 pub mod comp_gravity;
 pub mod comp_light;
@@ -20,5 +22,7 @@ pub mod set_star_grid;
 fn lroche(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<binary_model::BinaryModel>()?;
     m.add_class::<model::Model>()?;
+    m.add_class::<pparam::Pparam>()?;
+    m.add_class::<LDCType>()?;
     Ok(())
 }

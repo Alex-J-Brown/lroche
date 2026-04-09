@@ -1,17 +1,40 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use pyo3::prelude::*;
 
+#[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Pparam {
+    #[pyo3(get, set)]
     pub value: f64,
+    #[pyo3(get, set)]
     pub range: f64,
+    #[pyo3(get, set)]
     pub dstep: f64,
+    #[pyo3(get, set)]
     pub vary: bool,
+    #[pyo3(get, set)]
     pub defined: bool,
 }
 
+#[pymethods]
+impl Pparam {
+
+    #[new]
+    pub fn new(value: f64, range: f64, dstep: f64, vary: bool, defined: bool) -> Self {
+        Self { value, range, dstep, vary, defined }
+    }
+
+    fn __repr__(&self) -> PyResult<String> {
+        serde_json::to_string_pretty(self)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
+
+}
+
 impl Default for Pparam {
+    
     fn default() -> Self {
         Self {
             value: 0.0,

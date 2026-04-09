@@ -243,116 +243,227 @@ impl ModelUpdate {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Model {
+    #[pyo3(get)]
     pub q: Pparam,
+    #[pyo3(get)]
     pub iangle: Pparam,
+    #[pyo3(get)]
     pub r1: Pparam,
+    #[pyo3(get)]
     pub r2: Pparam,
+    #[pyo3(get)]
     pub cphi3: Pparam,
+    #[pyo3(get)]
     pub cphi4: Pparam,
+    #[pyo3(get)]
     pub spin1: Pparam,
+    #[pyo3(get)]
     pub spin2: Pparam,
+    #[pyo3(get)]
     pub t1: Pparam,
+    #[pyo3(get)]
     pub t2: Pparam,
+    #[pyo3(get)]
     pub ldc1_1: Pparam,
+    #[pyo3(get)]
     pub ldc1_2: Pparam,
+    #[pyo3(get)]
     pub ldc1_3: Pparam,
+    #[pyo3(get)]
     pub ldc1_4: Pparam,
+    #[pyo3(get)]
     pub ldc2_1: Pparam,
+    #[pyo3(get)]
     pub ldc2_2: Pparam,
+    #[pyo3(get)]
     pub ldc2_3: Pparam,
+    #[pyo3(get)]
     pub ldc2_4: Pparam,
+    #[pyo3(get)]
     pub velocity_scale: Pparam,
+    #[pyo3(get)]
     pub beam_factor1: Pparam,
+    #[pyo3(get)]
     pub beam_factor2: Pparam,
+    #[pyo3(get)]
     pub t0: Pparam,
+    #[pyo3(get)]
     pub period: Pparam,
+    #[pyo3(get)]
     pub pdot: Pparam,
+    #[pyo3(get)]
     pub deltat: Pparam,
+    #[pyo3(get)]
     pub gravity_dark1: Pparam,
+    #[pyo3(get)]
     pub gravity_dark2: Pparam,
+    #[pyo3(get)]
     pub absorb: Pparam,
+    #[pyo3(get)]
     pub slope: Pparam,
+    #[pyo3(get)]
     pub quad: Pparam,
+    #[pyo3(get)]
     pub cube: Pparam,
+    #[pyo3(get)]
     pub third: Pparam,
+    #[pyo3(get)]
     pub rdisc1: Pparam,
+    #[pyo3(get)]
     pub rdisc2: Pparam,
+    #[pyo3(get)]
     pub height_disc: Pparam,
+    #[pyo3(get)]
     pub beta_disc: Pparam,
+    #[pyo3(get)]
     pub temp_disc: Pparam,
+    #[pyo3(get)]
     pub texp_disc: Pparam,
+    #[pyo3(get)]
     pub lin_limb_disc: Pparam,
+    #[pyo3(get)]
     pub quad_limb_disc: Pparam,
+    #[pyo3(get)]
     pub temp_edge: Pparam,
+    #[pyo3(get)]
     pub absorb_edge: Pparam,
+    #[pyo3(get)]
     pub radius_spot: Pparam,
+    #[pyo3(get)]
     pub length_spot: Pparam,
+    #[pyo3(get)]
     pub height_spot: Pparam,
+    #[pyo3(get)]
     pub expon_spot: Pparam,
+    #[pyo3(get)]
     pub epow_spot: Pparam,
+    #[pyo3(get)]
     pub angle_spot: Pparam,
+    #[pyo3(get)]
     pub yaw_spot: Pparam,
+    #[pyo3(get)]
     pub temp_spot: Pparam,
+    #[pyo3(get)]
     pub tilt_spot: Pparam,
+    #[pyo3(get)]
     pub cfrac_spot: Pparam,
+    #[pyo3(get)]
     pub stsp11_long: Pparam,
+    #[pyo3(get)]
     pub stsp11_lat: Pparam,
+    #[pyo3(get)]
     pub stsp11_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp11_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp12_long: Pparam,
+    #[pyo3(get)]
     pub stsp12_lat: Pparam,
+    #[pyo3(get)]
     pub stsp12_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp12_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp13_long: Pparam,
+    #[pyo3(get)]
     pub stsp13_lat: Pparam,
+    #[pyo3(get)]
     pub stsp13_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp13_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp21_long: Pparam,
+    #[pyo3(get)]
     pub stsp21_lat: Pparam,
+    #[pyo3(get)]
     pub stsp21_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp21_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp22_long: Pparam,
+    #[pyo3(get)]
     pub stsp22_lat: Pparam,
+    #[pyo3(get)]
     pub stsp22_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp22_tcen: Pparam,
+    #[pyo3(get)]
     pub uesp_long1: Pparam,
+    #[pyo3(get)]
     pub uesp_long2: Pparam,
+    #[pyo3(get)]
     pub uesp_lathw: Pparam,
+    #[pyo3(get)]
     pub uesp_taper: Pparam,
+    #[pyo3(get)]
     pub uesp_temp: Pparam,
+    #[pyo3(get)]
     pub delta_phase: f64,
+    #[pyo3(get)]
     pub nlat1f: u32,
+    #[pyo3(get)]
     pub nlat2f: u32,
+    #[pyo3(get)]
     pub nlat1c: u32,
+    #[pyo3(get)]
     pub nlat2c: u32,
+    #[pyo3(get)]
     pub npole: bool,
+    #[pyo3(get)]
     pub nlatfill: u32,
+    #[pyo3(get)]
     pub nlngfill: u32,
+    #[pyo3(get)]
     pub lfudge: f64,
+    #[pyo3(get)]
     pub llo: f64,
+    #[pyo3(get)]
     pub lhi: f64,
+    #[pyo3(get)]
     pub phase1: f64,
+    #[pyo3(get)]
     pub phase2: f64,
+    #[pyo3(get)]
     pub wavelength: f64,
+    #[pyo3(get)]
     pub roche1: bool,
+    #[pyo3(get)]
     pub roche2: bool,
+    #[pyo3(get)]
     pub eclipse1: bool,
+    #[pyo3(get)]
     pub eclipse2: bool,
+    #[pyo3(get)]
     pub glens1: bool,
+    #[pyo3(get)]
     pub use_radii: bool,
+    #[pyo3(get)]
     pub tperiod: f64,
+    #[pyo3(get)]
     pub gdark_bolom1: bool,
+    #[pyo3(get)]
     pub gdark_bolom2: bool,
+    #[pyo3(get)]
     pub mucrit1: f64,
+    #[pyo3(get)]
     pub mucrit2: f64,
+    #[pyo3(get)]
     pub limb1: LDCType,
+    #[pyo3(get)]
     pub limb2: LDCType,
+    #[pyo3(get)]
     pub mirror: bool,
+    #[pyo3(get)]
     pub add_disc: bool,
+    #[pyo3(get)]
     pub nrad: u32,
+    #[pyo3(get)]
     pub opaque: bool,
+    #[pyo3(get)]
     pub add_spot: bool,
+    #[pyo3(get)]
     pub nspot: u32,
+    #[pyo3(get)]
     pub iscale: bool,
 }
 

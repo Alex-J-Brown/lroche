@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
+use pyo3::prelude::*;
 
+#[pyclass(from_py_object, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LDCType {
     Poly,
