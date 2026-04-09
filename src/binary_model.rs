@@ -62,6 +62,16 @@ pub struct LightCurve {
     pub log_prob: Option<f64>,
 }
 
+///
+/// BinaryModel is a class to contain the model for a close binary system.
+/// 
+/// An instance of BinaryModel can be initialised either from an lcurve .mod
+/// file using BinaryModel.from_file or from an instance of lroche.Model
+/// using BinaryModel.from_model.
+/// 
+/// Parameters can be updated by supplying a python dictionary of parameter
+/// key: value pairs to BinaryModel.update.
+/// 
 #[pyclass]
 pub struct BinaryModel {
     star1_coarse_grid: Vec<Point>,
@@ -217,6 +227,16 @@ impl BinaryModel {
         let ldc1: LDC = self.model.get_ldc1();
         let ldc2: LDC = self.model.get_ldc2();
 
+        let mut xmin: f64 = time[0];
+        let mut xmax: f64 = time[0];
+        for t in time {
+            xmin = if *t > xmin {xmin} else {*t};
+            xmax = if *t < xmax {xmax} else {*t};
+        }
+
+        let middle: f64 = (xmin + xmax) / 2.0;
+        let range: f64 = (xmax - xmin) / 2.0;
+
         star1.par_iter_mut().enumerate().for_each(|(i, out)| {
             let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
             // small Newton-Raphson iteration
@@ -230,7 +250,9 @@ impl BinaryModel {
             phase += self.model.deltat.value / self.model.period.value / 2.0
                 * ((TAU * phase).cos() - 1.0);
             let expose: f64 = t_exp[i] / self.model.period.value;
-            *out = self.compute_star1_flux(phase, &ldc1, expose, n_div[i] as i32);
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_star1_flux(phase, &ldc1, expose, n_div[i] as i32);
         });
 
         star2.par_iter_mut().enumerate().for_each(|(i, out)| {
@@ -246,7 +268,9 @@ impl BinaryModel {
             phase += self.model.deltat.value / self.model.period.value / 2.0
                 * ((TAU * phase).cos() - 1.0);
             let expose: f64 = t_exp[i] / self.model.period.value;
-            *out = self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_star2_flux(phase, &ldc2, expose, n_div[i] as i32);
         });
         
         disc.par_iter_mut().enumerate().for_each(|(i, out)| {
@@ -262,7 +286,9 @@ impl BinaryModel {
             phase += self.model.deltat.value / self.model.period.value / 2.0
                 * ((TAU * phase).cos() - 1.0);
             let expose: f64 = t_exp[i] / self.model.period.value;
-            *out = self.compute_disc_flux(phase, expose, n_div[i] as i32);
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_disc_flux(phase, expose, n_div[i] as i32);
         });
         
         disc_edge.par_iter_mut().enumerate().for_each(|(i, out)| {
@@ -278,7 +304,9 @@ impl BinaryModel {
             phase += self.model.deltat.value / self.model.period.value / 2.0
                 * ((TAU * phase).cos() - 1.0);
             let expose: f64 = t_exp[i] / self.model.period.value;
-            *out = self.compute_disc_edge_flux(phase, expose, n_div[i] as i32);
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_disc_edge_flux(phase, expose, n_div[i] as i32);
         });
 
         bright_spot.par_iter_mut().enumerate().for_each(|(i, out)| {
@@ -294,7 +322,9 @@ impl BinaryModel {
             phase += self.model.deltat.value / self.model.period.value / 2.0
                 * ((TAU * phase).cos() - 1.0);
             let expose: f64 = t_exp[i] / self.model.period.value;
-            *out = self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
 
         let mut star1_contribution: f64 = self.compute_star1_flux(0.5, &ldc1, 0.0, 1);
