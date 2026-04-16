@@ -1,11 +1,10 @@
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
-use roche::{C, x_l1_1, x_l1_2};
 use serde::{Deserialize, Serialize};
 use serde_pyobject::from_pyobject;
 use std::collections::HashMap;
 use std::f64::consts::PI;
-use std::fs::File;
+use std::fs::{File, write};
 use std::io::{self, BufRead};
 use std::path::Path;
 
@@ -606,6 +605,123 @@ impl Model {
     }
 
 
+    pub fn write(&self, path: &str) -> Result<(), String> {
+        let mut out = String::new();
+
+        write_param_line(&mut out, "q", &self.q);
+        write_param_line(&mut out, "iangle", &self.iangle);
+        write_param_line(&mut out, "r1", &self.r1);
+        write_param_line(&mut out, "r2", &self.r2);
+        write_param_line(&mut out, "cphi3", &self.cphi3);
+        write_param_line(&mut out, "cphi4", &self.cphi4);
+        write_param_line(&mut out, "spin1", &self.spin1);
+        write_param_line(&mut out, "spin2", &self.spin2);
+        write_param_line(&mut out, "t1", &self.t1);
+        write_param_line(&mut out, "t2", &self.t2);
+        write_param_line(&mut out, "ldc1_1", &self.ldc1_1);
+        write_param_line(&mut out, "ldc1_2", &self.ldc1_2);
+        write_param_line(&mut out, "ldc1_3", &self.ldc1_3);
+        write_param_line(&mut out, "ldc1_4", &self.ldc1_4);
+        write_param_line(&mut out, "ldc2_1", &self.ldc2_1);
+        write_param_line(&mut out, "ldc2_2", &self.ldc2_2);
+        write_param_line(&mut out, "ldc2_3", &self.ldc2_3);
+        write_param_line(&mut out, "ldc2_4", &self.ldc2_4);
+        write_param_line(&mut out, "velocity_scale", &self.velocity_scale);
+        write_param_line(&mut out, "beam_factor1", &self.beam_factor1);
+        write_param_line(&mut out, "beam_factor2", &self.beam_factor2);
+        write_param_line(&mut out, "t0", &self.t0);
+        write_param_line(&mut out, "period", &self.period);
+        write_param_line(&mut out, "pdot", &self.pdot);
+        write_param_line(&mut out, "deltat", &self.deltat);
+        write_param_line(&mut out, "gravity_dark1", &self.gravity_dark1);
+        write_param_line(&mut out, "gravity_dark2", &self.gravity_dark2);
+        write_param_line(&mut out, "absorb", &self.absorb);
+        write_param_line(&mut out, "slope", &self.slope);
+        write_param_line(&mut out, "quad", &self.quad);
+        write_param_line(&mut out, "cube", &self.cube);
+        write_param_line(&mut out, "third", &self.third);
+        write_param_line(&mut out, "rdisc1", &self.rdisc1);
+        write_param_line(&mut out, "rdisc2", &self.rdisc2);
+        write_param_line(&mut out, "height_disc", &self.height_disc);
+        write_param_line(&mut out, "beta_disc", &self.beta_disc);
+        write_param_line(&mut out, "temp_disc", &self.temp_disc);
+        write_param_line(&mut out, "texp_disc", &self.texp_disc);
+        write_param_line(&mut out, "lin_limb_disc", &self.lin_limb_disc);
+        write_param_line(&mut out, "quad_limb_disc", &self.quad_limb_disc);
+        write_param_line(&mut out, "temp_edge", &self.temp_edge);
+        write_param_line(&mut out, "absorb_edge", &self.absorb_edge);
+        write_param_line(&mut out, "radius_spot", &self.radius_spot);
+        write_param_line(&mut out, "length_spot", &self.length_spot);
+        write_param_line(&mut out, "height_spot", &self.height_spot);
+        write_param_line(&mut out, "expon_spot", &self.expon_spot);
+        write_param_line(&mut out, "epow_spot", &self.epow_spot);
+        write_param_line(&mut out, "angle_spot", &self.angle_spot);
+        write_param_line(&mut out, "yaw_spot", &self.yaw_spot);
+        write_param_line(&mut out, "temp_spot", &self.temp_spot);
+        write_param_line(&mut out, "tilt_spot", &self.tilt_spot);
+        write_param_line(&mut out, "cfrac_spot", &self.cfrac_spot);
+        write_param_line(&mut out, "stsp11_long", &self.stsp11_long);
+        write_param_line(&mut out, "stsp11_lat", &self.stsp11_lat);
+        write_param_line(&mut out, "stsp11_fwhm", &self.stsp11_fwhm);
+        write_param_line(&mut out, "stsp11_tcen", &self.stsp11_tcen);
+        write_param_line(&mut out, "stsp12_long", &self.stsp12_long);
+        write_param_line(&mut out, "stsp12_lat", &self.stsp12_lat);
+        write_param_line(&mut out, "stsp12_fwhm", &self.stsp12_fwhm);
+        write_param_line(&mut out, "stsp12_tcen", &self.stsp12_tcen);
+        write_param_line(&mut out, "stsp13_long", &self.stsp13_long);
+        write_param_line(&mut out, "stsp13_lat", &self.stsp13_lat);
+        write_param_line(&mut out, "stsp13_fwhm", &self.stsp13_fwhm);
+        write_param_line(&mut out, "stsp13_tcen", &self.stsp13_tcen);
+        write_param_line(&mut out, "stsp21_long", &self.stsp21_long);
+        write_param_line(&mut out, "stsp21_lat", &self.stsp21_lat);
+        write_param_line(&mut out, "stsp21_fwhm", &self.stsp21_fwhm);
+        write_param_line(&mut out, "stsp21_tcen", &self.stsp21_tcen);
+        write_param_line(&mut out, "stsp22_long", &self.stsp22_long);
+        write_param_line(&mut out, "stsp22_lat", &self.stsp22_lat);
+        write_param_line(&mut out, "stsp22_fwhm", &self.stsp22_fwhm);
+        write_param_line(&mut out, "stsp22_tcen", &self.stsp22_tcen);
+        write_param_line(&mut out, "uesp_long1", &self.uesp_long1);
+        write_param_line(&mut out, "uesp_long2", &self.uesp_long2);
+        write_param_line(&mut out, "uesp_lathw", &self.uesp_lathw);
+        write_param_line(&mut out, "uesp_taper", &self.uesp_taper);
+        write_param_line(&mut out, "uesp_temp", &self.uesp_temp);
+        write_f64_line(&mut out, "delta_phase", self.delta_phase);
+        write_u32_line(&mut out, "nlat1f", self.nlat1f);
+        write_u32_line(&mut out, "nlat2f", self.nlat2f);
+        write_u32_line(&mut out, "nlat1c", self.nlat1c);
+        write_u32_line(&mut out, "nlat2c", self.nlat2c);
+        write_bool_line(&mut out, "npole", self.npole);
+        write_u32_line(&mut out, "nlatfill", self.nlatfill);
+        write_u32_line(&mut out, "nlngfill", self.nlngfill);
+        write_f64_line(&mut out, "lfudge", self.lfudge);
+        write_f64_line(&mut out, "llo", self.llo);
+        write_f64_line(&mut out, "lhi", self.lhi);
+        write_f64_line(&mut out, "phase1", self.phase1);
+        write_f64_line(&mut out, "phase2", self.phase2);
+        write_f64_line(&mut out, "wavelength", self.wavelength);
+        write_bool_line(&mut out, "roche1", self.roche1);
+        write_bool_line(&mut out, "roche2", self.roche2);
+        write_bool_line(&mut out, "eclipse1", self.eclipse1);
+        write_bool_line(&mut out, "eclipse2", self.eclipse2);
+        write_bool_line(&mut out, "glens1", self.glens1);
+        write_bool_line(&mut out, "use_radii", self.use_radii);
+        write_f64_line(&mut out, "tperiod", self.tperiod);
+        write_bool_line(&mut out, "gdark_bolom1", self.gdark_bolom1);
+        write_bool_line(&mut out, "gdark_bolom2", self.gdark_bolom2);
+        write_f64_line(&mut out, "mucrit1", self.mucrit1);
+        write_f64_line(&mut out, "mucrit2", self.mucrit2);
+        write_ldc_line(&mut out, "limb1", self.limb1);
+        write_ldc_line(&mut out, "limb2", self.limb2);
+        write_bool_line(&mut out, "mirror", self.mirror);
+        write_bool_line(&mut out, "add_disc", self.add_disc);
+        write_u32_line(&mut out, "nrad", self.nrad);
+        write_bool_line(&mut out, "opaque", self.opaque);
+        write_bool_line(&mut out, "add_spot", self.add_spot);
+        write_u32_line(&mut out, "nspot", self.nspot);
+        write_bool_line(&mut out, "iscale", self.iscale);
+        write(path, out).map_err(|e| e.to_string())
+    }
+
     
     pub fn get_r1r2(&self) -> (f64, f64) {
         if self.use_radii {
@@ -762,6 +878,7 @@ impl Model {
 
 #[pymethods]
 impl Model {
+
     #[new]
     fn new() -> Self {
         Model::default()
@@ -773,6 +890,11 @@ impl Model {
         Model::from_file(path).map_err(pyo3::exceptions::PyIOError::new_err)
     }
 
+    #[pyo3(name="write")]
+    fn write_py(&self, path: &str) -> PyResult<()> {
+        self.write(path)
+            .map_err(pyo3::exceptions::PyIOError::new_err)
+    }
 
     fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
@@ -912,3 +1034,27 @@ fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
 }
 
 
+fn write_param_line(out: &mut String, name: &str, p: &Pparam) {
+    out.push_str(&format!("{:<15} = {}\n", name, p));
+}
+
+fn write_f64_line(out: &mut String, name: &str, v: f64) {
+    out.push_str(&format!("{:<15} = {}\n", name, v));
+}
+
+fn write_u32_line(out: &mut String, name: &str, v: u32) {
+    out.push_str(&format!("{:<15} = {}\n", name, v));
+}
+
+fn write_bool_line(out: &mut String, name: &str, v: bool) {
+    let val = if v { 1 } else { 0 };
+    out.push_str(&format!("{:<15} = {}\n", name, val));
+}
+
+fn write_ldc_line(out: &mut String, name: &str, v: LDCType) {
+    let s = match v {
+        LDCType::Claret => "Claret",
+        LDCType::Poly => "Poly",
+    };
+    out.push_str(&format!("{:<15} = {}\n", name, s));
+}

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -65,6 +66,22 @@ impl FromStr for Pparam {
             vary,
             defined,
         })
+    }
+}
+
+impl fmt::Display for Pparam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let vary = if self.vary { 1 } else { 0 };
+        let defined = if self.defined { 1 } else { 0 };
+        write!(
+            f,
+            "{} {} {} {} {}",
+            self.value,
+            self.range,
+            self.dstep,
+            vary,
+            defined
+        )
     }
 }
 
