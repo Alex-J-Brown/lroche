@@ -221,13 +221,15 @@ pub fn comp_star1(
     let mut ptype: i32;
 
     let mut ssum: f64;
+    let n_div_f: f64 = n_div as f64;
 
     for div in 0..n_div {
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - ((n_div_f - 1.0) / 2.0)) / (n_div_f - 1.0);
+
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -262,7 +264,7 @@ pub fn comp_star1(
                 }
             }
         }
-
+        
         sum += wgt * gint.scale1(phi) * ssum;
     }
 
@@ -310,13 +312,14 @@ pub fn comp_star2(
     let mut ptype: i32;
 
     let mut ssum: f64;
+    let n_div_f: f64 = n_div as f64;
 
     for div in 0..n_div {
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div_f - 1.0) / 2.0) / (n_div_f - 1.0);
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -410,13 +413,14 @@ pub fn comp_disc(
     let mut ssum;
     let mut mu;
     let mut wgt;
+    let n_div_f: f64 = n_div as f64;
 
     for div in 0..n_div {
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div_f - 1.0) / 2.0) / (n_div_f - 1.0);
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -462,13 +466,14 @@ pub fn comp_disc_edge(
     let mut ssum: f64;
     let mut mu: f64;
     let mut wgt: f64;
+    let n_div_f: f64 = n_div as f64;
 
     for div in 0..n_div {
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div_f - 1.0) / 2.0) / (n_div_f - 1.0);
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
@@ -512,13 +517,14 @@ pub fn comp_bright_spot(
     let mut ssum;
     let mut mu;
     let mut wgt;
+    let n_div_f: f64 = n_div as f64;
 
     for div in 0..n_div {
         if n_div == 1 {
             phi = phase;
             wgt = 1.0;
         } else {
-            phi = phase + expose * (div as f64 - (n_div as f64 - 1.0) / 2.0) / (n_div - 1) as f64;
+            phi = phase + expose * (div as f64 - (n_div_f - 1.0) / 2.0) / (n_div_f - 1.0);
             if div == 0 || div == n_div - 1 {
                 wgt = 0.5;
             } else {
