@@ -1,5 +1,5 @@
 |PyPI version shields.io|
-.. |PyPI version shields.io| image:: https://https://img.shields.io/pypi/v/lroche.svg
+.. |PyPI version shields.io| image:: https://img.shields.io/pypi/v/lroche.svg
    :target: https://pypi.org/project/lroche
 
 
