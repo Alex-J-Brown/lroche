@@ -1,5 +1,5 @@
-.. |PyPI version badgen.io| image:: https://badgen.net/pypi/v/roche/
-       :target: https://pypi.org/project/roche
+.. |PyPI version badgen.net| image:: https://badgen.net/pypi/v/lroche/
+       :target: https://pypi.org/project/lroche
 
 
 Python extension of the lroche routine from Tom Marsh's LCURVE (cpp-lcurve) translated into Rust
