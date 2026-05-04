@@ -1,7 +1,7 @@
 |PyPI version shields.io|
 
-.. |PyPI version shields.io| image:: https://img.shields.io/pypi/v/ansicolortags.svg
-    :target: https://pypi.python.org/pypi/ansicolortags/
+.. |PyPI version shields.io| image:: https://img.shields.io/pypi/v/lroche.svg
+    :target: https://pypi.python.org/pypi/lroche/
 
 
 Python extension of the lroche routine from Tom Marsh's LCURVE (cpp-lcurve) translated into Rust
