@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
-use roche::{C, x_l1_1, x_l1_2};
+use roche::{C, x_l1_1, x_l1_2, errors::RocheError};
 use serde::{Deserialize, Serialize};
 use serde_pyobject::from_pyobject;
 use std::collections::HashMap;
@@ -757,173 +757,95 @@ impl Model {
         && self.cfrac_spot.defined
     }
 
-    pub fn validate(&self) {
-        assert!(self.basic_defined(), "Necessary parameters not defined.");
-
-        assert!(
-            check_parameter_f64(self.iangle.value, 0.0, 90.0),
-            "iangle must be between 0.0 and 90.0."
-        );
-        assert!(
-            check_parameter_f64(self.q.value, 0.0, f64::INFINITY),
-            "q must be positive."
-        );
+    pub fn validate(&self) -> Result<(), RocheError> {
+        if !self.basic_defined() {
+            return Err(RocheError::ParameterError("Necessary parameters not defined.".to_string()));
+        }
+        if !check_parameter_f64(self.iangle.value, 0.0, 90.0) {
+            return Err(RocheError::ParameterError("iangle must be between 0.0 and 90.0.".to_string()));
+        }
+        if !check_parameter_f64(self.q.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("q must be positive.".to_string()));
+        }
         let rl1: f64 = x_l1_1(self.q.value, self.spin1.value).unwrap();
         let rl2: f64 = 1.0 - x_l1_2(self.q.value, self.spin2.value).unwrap();
 
         if self.use_radii {
-            assert!(
-                check_parameter_f64(self.r1.value, -1.0, rl1),
-                "r1 must be between -1.0 and 1.0 and not exceed its Roche lobe."
-            );
-            assert!(
-                check_parameter_f64(self.r2.value, -1.0, rl2),
-                "r2 must be between -1.0 and 1.0 and not exceed its Roche lobe."
-            );
+            if !check_parameter_f64(self.r1.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("r1 must be between -1.0 and 1.0 and not exceed its Roche lobe.".to_string()));
+            }
+            if !check_parameter_f64(self.r2.value, -1.0, rl2){
+                return Err(RocheError::ParameterError("r2 must be between -1.0 and 1.0 and not exceed its Roche lobe.".to_string()));
+            }
         } else {
             let (r1, r2) = self.get_r1r2();
-            assert!(
-                check_parameter_f64(r1, 0.0, rl1),
-                "cphi3 and cphi4 must correspond to a primary radius between 0.0 and 1.0 that does not exceed its Roche lobe."
-            );
-            assert!(
-                check_parameter_f64(r2, 0.0, rl2),
-                "cphi3 and cphi4 must correspond to a secondary radius between 0.0 and 1.0 that does not exceed its Roche lobe."
-            );
+            if !check_parameter_f64(r1, 0.0, rl1){
+                return Err(RocheError::ParameterError("cphi3 and cphi4 must correspond to a primary radius between 0.0 and 1.0 that does not exceed its Roche lobe.".to_string()));
+            }
+            if !check_parameter_f64(r2, 0.0, rl2){
+                return Err(RocheError::ParameterError("cphi3 and cphi4 must correspond to a secondary radius between 0.0 and 1.0 that does not exceed its Roche lobe.".to_string()));
+            }
         }
-        assert!(
-            check_parameter_f64(self.t1.value, 0.0, f64::INFINITY),
-            "t1 must be positive."
-        );
-        assert!(
-            check_parameter_f64(self.t2.value, 0.0, f64::INFINITY),
-            "t2 must be positive."
-        );
-        assert!(
-            check_parameter_f64(self.velocity_scale.value, 0.0, C / 1000.0),
-            "velocity_scale must be positive and not exceed the speed of light."
-        );
-        assert!(
-            check_parameter_f64(self.period.value, 0.0, f64::INFINITY),
-            "orbital period must be positive."
-        );
-        assert!(
-            check_parameter_f64(self.absorb.value, 0.0, 1.0),
-            "absorb must be between 0.0 and 1.0."
-        );
-        assert!(
-            check_parameter_f64(self.third.value, 0.0, f64::INFINITY),
-            "third must be positive"
-        );
-        assert_ne!(self.wavelength, 0.0, "wavelength cannot be 0.0");
-        assert_ne!(self.tperiod, 0.0, "tperiod cannot be 0.0");
-
+        if !check_parameter_f64(self.t1.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("t1 must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.t2.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("t2 must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.velocity_scale.value, 0.0, C / 1000.0){
+            return Err(RocheError::ParameterError("velocity_scale must be positive and not exceed the speed of light.".to_string()));
+        }
+        if !check_parameter_f64(self.period.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("orbital period must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.absorb.value, 0.0, 1.0){
+            return Err(RocheError::ParameterError("absorb must be between 0.0 and 1.0.".to_string()));
+        }
+        if !check_parameter_f64(self.third.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("third must be positive".to_string()));
+        }
+        if self.wavelength == 0.0 {
+            return Err(RocheError::ParameterError("wavelength cannot be 0.0".to_string()));
+        } 
+        if self.tperiod == 0.0 {
+            return Err(RocheError::ParameterError("tperiod cannot be 0.0".to_string()));
+        }
 
         if self.add_disc {
-            assert!(self.disc_defined(), "Necessary disc parameters not defined.");
-            assert!(
-                check_parameter_f64(self.r1.value, -1.0, rl1),
-                "rdisc1 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star."
-            );
-            assert!(
-                check_parameter_f64(self.r2.value, -1.0, rl1),
-                "rdisc2 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star."
-            );
-            assert!(
-                check_parameter_f64(self.temp_disc.value, 0.0, f64::INFINITY),
-                "temp_disc must be positive."
-            );
-            assert!(
-                check_parameter_f64(self.temp_edge.value, 0.0, f64::INFINITY),
-                "temp_edge must be positive."
-            );
-            assert!(
-                check_parameter_f64(self.absorb_edge.value, 0.0, 1.0),
-                "absorb_edge must be between 0.0 and 1.0."
-            );
+            if !self.disc_defined(){
+               return Err(RocheError::ParameterError("Necessary disc parameters not defined.".to_string())); 
+            }
+            if !check_parameter_f64(self.r1.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("rdisc1 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.r2.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("rdisc2 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_disc.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_disc must be positive.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_edge.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_edge must be positive.".to_string()));
+            }
+            if !check_parameter_f64(self.absorb_edge.value, 0.0, 1.0){
+                return Err(RocheError::ParameterError("absorb_edge must be between 0.0 and 1.0.".to_string()));
+            }
         }
 
         if self.add_spot {
-            assert!(self.bright_spot_defined(), "Necessary bright spot parameters not defined.");
-            assert!(
-                check_parameter_f64(self.radius_spot.value, 0.0, 1.0),
-                "radius_spot must be between 0.0 and 1.0 and not exceed the Roche lobe of the primary star."
-            );
-            assert!(
-                check_parameter_f64(self.temp_spot.value, 0.0, f64::INFINITY),
-                "temp_spot must be positive."
-            );
+            if !self.bright_spot_defined(){
+                return Err(RocheError::ParameterError("Necessary bright spot parameters not defined.".to_string()));
+            }
+            if !check_parameter_f64(self.radius_spot.value, 0.0, 1.0){
+                return Err(RocheError::ParameterError("radius_spot must be between 0.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_spot.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_spot must be positive.".to_string()));
+            }
         }
-
-
-
         
+        Ok(())
 
-        // cphi3,
-        // cphi4,
-        // t0,
-        // pdot,
-        // deltat,
-        // slope,
-        // quad,
-        // cube,
-        // height_disc,
-        // beta_disc,
-        // texp_disc,
-        // lin_limb_disc,
-        // quad_limb_disc,
-        // length_spot,
-        // height_spot,
-        // expon_spot,
-        // epow_spot,
-        // angle_spot,
-        // yaw_spot,
-        // tilt_spot,
-        // cfrac_spot,
-        // stsp11_long,
-        // stsp11_lat,
-        // stsp11_fwhm,
-        // stsp11_tcen,
-        // stsp12_long,
-        // stsp12_lat,
-        // stsp12_fwhm,
-        // stsp12_tcen,
-        // stsp13_long,
-        // stsp13_lat,
-        // stsp13_fwhm,
-        // stsp13_tcen,
-        // stsp21_long,
-        // stsp21_lat,
-        // stsp21_fwhm,
-        // stsp21_tcen,
-        // stsp22_long,
-        // stsp22_lat,
-        // stsp22_fwhm,
-        // stsp22_tcen,
-        // uesp_long1,
-        // uesp_long2,
-        // uesp_lathw,
-        // uesp_taper,
-        // uesp_temp,
-        // delta_phase,
-        // nlat1f,
-        // nlat2f,
-        // nlat1c,
-        // nlat2c,
-        // npole,
-        // nlatfill,
-        // nlngfill,
-        // lfudge,
-        // llo,
-        // lhi,
-        // phase1,
-        // phase2,
-        // wavelength,
-        // tperiod,
-        // mucrit1,
-        // mucrit2,
-        // nrad,
-        // nspot,
     }
 
     pub fn get_r1r2(&self) -> (f64, f64) {

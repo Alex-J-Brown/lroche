@@ -419,6 +419,7 @@ impl BinaryModel {
     }
 
     fn reset_grid_continuum(&mut self) -> Result<(), RocheError> {
+        self.model.validate()?;
         let (r1, mut r2) = self.model.get_r1r2();
         let rl2: f64 = 1.0 - roche::x_l1_2(self.model.q.value, self.model.spin2.value)?;
         if r2 < 0.0 {
@@ -620,7 +621,7 @@ fn build_grids(
     ),
     RocheError,
 > {
-    model.validate();
+    model.validate()?;
     let mut star1_fine_grid = set_star_grid(model, Star::Primary, true)?;
     let mut star2_fine_grid = set_star_grid(model, Star::Secondary, true)?;
     let mut star1_coarse_grid: Vec<Point>;
