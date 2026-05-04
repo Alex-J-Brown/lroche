@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
+use roche::{C, x_l1_1, x_l1_2, errors::RocheError};
 use serde::{Deserialize, Serialize};
 use serde_pyobject::from_pyobject;
 use std::collections::HashMap;
@@ -190,51 +191,51 @@ pub struct ModelUpdate {
 impl ModelUpdate {
     pub fn grid_changed(&self) -> bool {
         self.q.is_some()
-        || self.iangle.is_some()
-        || self.r1.is_some()
-        || self.r2.is_some()
-        || self.cphi3.is_some()
-        || self.cphi4.is_some()
-        || self.spin1.is_some()
-        || self.spin2.is_some()
-        || self.t0.is_some()
-        || self.period.is_some()
-        || self.pdot.is_some()
-        || self.deltat.is_some()
-        || self.rdisc1.is_some()
-        || self.rdisc2.is_some()
-        || self.radius_spot.is_some()
-        || self.height_spot.is_some()
-        || self.expon_spot.is_some()
-        || self.epow_spot.is_some()
-        || self.angle_spot.is_some()
-        || self.yaw_spot.is_some()
-        || self.temp_spot.is_some()
-        || self.tilt_spot.is_some()
-        || self.cfrac_spot.is_some()
-        || self.delta_phase.is_some()
-        || self.nlat1f.is_some()
-        || self.nlat2f.is_some()
-        || self.nlat1c.is_some()
-        || self.nlat2c.is_some()
-        || self.npole.is_some()
-        || self.nlatfill.is_some()
-        || self.nlngfill.is_some()
-        || self.lfudge.is_some()
-        || self.llo.is_some()
-        || self.lhi.is_some()
-        || self.phase1.is_some()
-        || self.phase2.is_some()
-        || self.roche1.is_some()
-        || self.roche2.is_some()
-        || self.eclipse1.is_some()
-        || self.eclipse2.is_some()
-        || self.use_radii.is_some()
-        || self.add_disc.is_some()
-        || self.nrad.is_some()
-        || self.opaque.is_some()
-        || self.add_spot.is_some()
-        || self.nspot.is_some()
+            || self.iangle.is_some()
+            || self.r1.is_some()
+            || self.r2.is_some()
+            || self.cphi3.is_some()
+            || self.cphi4.is_some()
+            || self.spin1.is_some()
+            || self.spin2.is_some()
+            || self.t0.is_some()
+            || self.period.is_some()
+            || self.pdot.is_some()
+            || self.deltat.is_some()
+            || self.rdisc1.is_some()
+            || self.rdisc2.is_some()
+            || self.radius_spot.is_some()
+            || self.height_spot.is_some()
+            || self.expon_spot.is_some()
+            || self.epow_spot.is_some()
+            || self.angle_spot.is_some()
+            || self.yaw_spot.is_some()
+            || self.temp_spot.is_some()
+            || self.tilt_spot.is_some()
+            || self.cfrac_spot.is_some()
+            || self.delta_phase.is_some()
+            || self.nlat1f.is_some()
+            || self.nlat2f.is_some()
+            || self.nlat1c.is_some()
+            || self.nlat2c.is_some()
+            || self.npole.is_some()
+            || self.nlatfill.is_some()
+            || self.nlngfill.is_some()
+            || self.lfudge.is_some()
+            || self.llo.is_some()
+            || self.lhi.is_some()
+            || self.phase1.is_some()
+            || self.phase2.is_some()
+            || self.roche1.is_some()
+            || self.roche2.is_some()
+            || self.eclipse1.is_some()
+            || self.eclipse2.is_some()
+            || self.use_radii.is_some()
+            || self.add_disc.is_some()
+            || self.nrad.is_some()
+            || self.opaque.is_some()
+            || self.add_spot.is_some()
+            || self.nspot.is_some()
     }
 }
 
@@ -242,116 +243,227 @@ impl ModelUpdate {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Model {
+    #[pyo3(get)]
     pub q: Pparam,
+    #[pyo3(get)]
     pub iangle: Pparam,
+    #[pyo3(get)]
     pub r1: Pparam,
+    #[pyo3(get)]
     pub r2: Pparam,
+    #[pyo3(get)]
     pub cphi3: Pparam,
+    #[pyo3(get)]
     pub cphi4: Pparam,
+    #[pyo3(get)]
     pub spin1: Pparam,
+    #[pyo3(get)]
     pub spin2: Pparam,
+    #[pyo3(get)]
     pub t1: Pparam,
+    #[pyo3(get)]
     pub t2: Pparam,
+    #[pyo3(get)]
     pub ldc1_1: Pparam,
+    #[pyo3(get)]
     pub ldc1_2: Pparam,
+    #[pyo3(get)]
     pub ldc1_3: Pparam,
+    #[pyo3(get)]
     pub ldc1_4: Pparam,
+    #[pyo3(get)]
     pub ldc2_1: Pparam,
+    #[pyo3(get)]
     pub ldc2_2: Pparam,
+    #[pyo3(get)]
     pub ldc2_3: Pparam,
+    #[pyo3(get)]
     pub ldc2_4: Pparam,
+    #[pyo3(get)]
     pub velocity_scale: Pparam,
+    #[pyo3(get)]
     pub beam_factor1: Pparam,
+    #[pyo3(get)]
     pub beam_factor2: Pparam,
+    #[pyo3(get)]
     pub t0: Pparam,
+    #[pyo3(get)]
     pub period: Pparam,
+    #[pyo3(get)]
     pub pdot: Pparam,
+    #[pyo3(get)]
     pub deltat: Pparam,
+    #[pyo3(get)]
     pub gravity_dark1: Pparam,
+    #[pyo3(get)]
     pub gravity_dark2: Pparam,
+    #[pyo3(get)]
     pub absorb: Pparam,
+    #[pyo3(get)]
     pub slope: Pparam,
+    #[pyo3(get)]
     pub quad: Pparam,
+    #[pyo3(get)]
     pub cube: Pparam,
+    #[pyo3(get)]
     pub third: Pparam,
+    #[pyo3(get)]
     pub rdisc1: Pparam,
+    #[pyo3(get)]
     pub rdisc2: Pparam,
+    #[pyo3(get)]
     pub height_disc: Pparam,
+    #[pyo3(get)]
     pub beta_disc: Pparam,
+    #[pyo3(get)]
     pub temp_disc: Pparam,
+    #[pyo3(get)]
     pub texp_disc: Pparam,
+    #[pyo3(get)]
     pub lin_limb_disc: Pparam,
+    #[pyo3(get)]
     pub quad_limb_disc: Pparam,
+    #[pyo3(get)]
     pub temp_edge: Pparam,
+    #[pyo3(get)]
     pub absorb_edge: Pparam,
+    #[pyo3(get)]
     pub radius_spot: Pparam,
+    #[pyo3(get)]
     pub length_spot: Pparam,
+    #[pyo3(get)]
     pub height_spot: Pparam,
+    #[pyo3(get)]
     pub expon_spot: Pparam,
+    #[pyo3(get)]
     pub epow_spot: Pparam,
+    #[pyo3(get)]
     pub angle_spot: Pparam,
+    #[pyo3(get)]
     pub yaw_spot: Pparam,
+    #[pyo3(get)]
     pub temp_spot: Pparam,
+    #[pyo3(get)]
     pub tilt_spot: Pparam,
+    #[pyo3(get)]
     pub cfrac_spot: Pparam,
+    #[pyo3(get)]
     pub stsp11_long: Pparam,
+    #[pyo3(get)]
     pub stsp11_lat: Pparam,
+    #[pyo3(get)]
     pub stsp11_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp11_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp12_long: Pparam,
+    #[pyo3(get)]
     pub stsp12_lat: Pparam,
+    #[pyo3(get)]
     pub stsp12_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp12_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp13_long: Pparam,
+    #[pyo3(get)]
     pub stsp13_lat: Pparam,
+    #[pyo3(get)]
     pub stsp13_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp13_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp21_long: Pparam,
+    #[pyo3(get)]
     pub stsp21_lat: Pparam,
+    #[pyo3(get)]
     pub stsp21_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp21_tcen: Pparam,
+    #[pyo3(get)]
     pub stsp22_long: Pparam,
+    #[pyo3(get)]
     pub stsp22_lat: Pparam,
+    #[pyo3(get)]
     pub stsp22_fwhm: Pparam,
+    #[pyo3(get)]
     pub stsp22_tcen: Pparam,
+    #[pyo3(get)]
     pub uesp_long1: Pparam,
+    #[pyo3(get)]
     pub uesp_long2: Pparam,
+    #[pyo3(get)]
     pub uesp_lathw: Pparam,
+    #[pyo3(get)]
     pub uesp_taper: Pparam,
+    #[pyo3(get)]
     pub uesp_temp: Pparam,
+    #[pyo3(get)]
     pub delta_phase: f64,
+    #[pyo3(get)]
     pub nlat1f: u32,
+    #[pyo3(get)]
     pub nlat2f: u32,
+    #[pyo3(get)]
     pub nlat1c: u32,
+    #[pyo3(get)]
     pub nlat2c: u32,
+    #[pyo3(get)]
     pub npole: bool,
+    #[pyo3(get)]
     pub nlatfill: u32,
+    #[pyo3(get)]
     pub nlngfill: u32,
+    #[pyo3(get)]
     pub lfudge: f64,
+    #[pyo3(get)]
     pub llo: f64,
+    #[pyo3(get)]
     pub lhi: f64,
+    #[pyo3(get)]
     pub phase1: f64,
+    #[pyo3(get)]
     pub phase2: f64,
+    #[pyo3(get)]
     pub wavelength: f64,
+    #[pyo3(get)]
     pub roche1: bool,
+    #[pyo3(get)]
     pub roche2: bool,
+    #[pyo3(get)]
     pub eclipse1: bool,
+    #[pyo3(get)]
     pub eclipse2: bool,
+    #[pyo3(get)]
     pub glens1: bool,
+    #[pyo3(get)]
     pub use_radii: bool,
+    #[pyo3(get)]
     pub tperiod: f64,
+    #[pyo3(get)]
     pub gdark_bolom1: bool,
+    #[pyo3(get)]
     pub gdark_bolom2: bool,
+    #[pyo3(get)]
     pub mucrit1: f64,
+    #[pyo3(get)]
     pub mucrit2: f64,
+    #[pyo3(get)]
     pub limb1: LDCType,
+    #[pyo3(get)]
     pub limb2: LDCType,
+    #[pyo3(get)]
     pub mirror: bool,
+    #[pyo3(get)]
     pub add_disc: bool,
+    #[pyo3(get)]
     pub nrad: u32,
+    #[pyo3(get)]
     pub opaque: bool,
+    #[pyo3(get)]
     pub add_spot: bool,
+    #[pyo3(get)]
     pub nspot: u32,
+    #[pyo3(get)]
     pub iscale: bool,
 }
 
@@ -529,12 +641,12 @@ impl Model {
             temp_spot: get_p(&map, "temp_spot")?,
             tilt_spot: get_p(&map, "tilt_spot")?,
             cfrac_spot: get_p(&map, "cfrac_spot")?,
-            
+
             stsp11_long: get_p(&map, "stsp11_long").unwrap_or_default(),
             stsp11_lat: get_p(&map, "stsp11_lat").unwrap_or_default(),
             stsp11_fwhm: get_p(&map, "stsp11_fwhm").unwrap_or_default(),
             stsp11_tcen: get_p(&map, "stsp11_tcen").unwrap_or_default(),
-            
+
             stsp12_long: get_p(&map, "stsp12_long").unwrap_or_default(),
             stsp12_lat: get_p(&map, "stsp12_lat").unwrap_or_default(),
             stsp12_fwhm: get_p(&map, "stsp12_fwhm").unwrap_or_default(),
@@ -544,7 +656,7 @@ impl Model {
             stsp13_lat: get_p(&map, "stsp13_lat").unwrap_or_default(),
             stsp13_fwhm: get_p(&map, "stsp13_fwhm").unwrap_or_default(),
             stsp13_tcen: get_p(&map, "stsp13_tcen").unwrap_or_default(),
-            
+
             stsp21_long: get_p(&map, "stsp21_long").unwrap_or_default(),
             stsp21_lat: get_p(&map, "stsp21_lat").unwrap_or_default(),
             stsp21_fwhm: get_p(&map, "stsp21_fwhm").unwrap_or_default(),
@@ -560,7 +672,7 @@ impl Model {
             uesp_lathw: get_p(&map, "uesp_lathw").unwrap_or_default(),
             uesp_taper: get_p(&map, "uesp_taper").unwrap_or_default(),
             uesp_temp: get_p(&map, "uesp_temp").unwrap_or_default(),
-            
+
             // Scalars
             delta_phase: get_f64(&map, "delta_phase")?,
             nlat1f: get_u32(&map, "nlat1f")?,
@@ -598,7 +710,8 @@ impl Model {
             iscale: get_bool(&map, "iscale")?,
         })
     }
-    
+
+
     pub fn from_file(path: &str) -> Result<Self, String> {
         let map = load_entries(path)?;
         Self::from_map(map)
@@ -722,7 +835,137 @@ impl Model {
         write(path, out).map_err(|e| e.to_string())
     }
 
-    
+    pub fn basic_defined(&self) -> bool {
+        self.q.defined
+        && self.iangle.defined
+        && ((self.r1.defined && self.r2.defined && self.use_radii)
+            || (self.cphi3.defined && self.cphi4.defined && !self.use_radii))
+        && self.t1.defined
+        && self.t2.defined
+        && self.ldc1_1.defined
+        && self.ldc2_1.defined
+        && self.velocity_scale.defined
+        && self.t0.defined
+        && self.period.defined
+        && self.gravity_dark1.defined
+        && self.gravity_dark2.defined
+        && self.absorb.defined
+    }
+
+    pub fn disc_defined(&self) -> bool {
+        self.rdisc1.defined
+        && self.rdisc2.defined
+        && self.height_disc.defined
+        && self.beta_disc.defined
+        && self.temp_disc.defined
+        && self.texp_disc.defined
+        && self.lin_limb_disc.defined
+    }
+
+    pub fn bright_spot_defined(&self) -> bool {
+        self.radius_spot.defined
+        && self.length_spot.defined
+        && self.height_spot.defined
+        && self.expon_spot.defined
+        && self.epow_spot.defined
+        && self.angle_spot.defined
+        && self.yaw_spot.defined
+        && self.temp_spot.defined
+        && self.tilt_spot.defined
+        && self.cfrac_spot.defined
+    }
+
+    pub fn validate(&self) -> Result<(), RocheError> {
+        if !self.basic_defined() {
+            return Err(RocheError::ParameterError("Necessary parameters not defined.".to_string()));
+        }
+        if !check_parameter_f64(self.iangle.value, 0.0, 90.0) {
+            return Err(RocheError::ParameterError("iangle must be between 0.0 and 90.0.".to_string()));
+        }
+        if !check_parameter_f64(self.q.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("q must be positive.".to_string()));
+        }
+        let rl1: f64 = x_l1_1(self.q.value, self.spin1.value).unwrap();
+        let rl2: f64 = 1.0 - x_l1_2(self.q.value, self.spin2.value).unwrap();
+
+        if self.use_radii {
+            if !check_parameter_f64(self.r1.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("r1 must be between -1.0 and 1.0 and not exceed its Roche lobe.".to_string()));
+            }
+            if !check_parameter_f64(self.r2.value, -1.0, rl2){
+                return Err(RocheError::ParameterError("r2 must be between -1.0 and 1.0 and not exceed its Roche lobe.".to_string()));
+            }
+        } else {
+            let (r1, r2) = self.get_r1r2();
+            if !check_parameter_f64(r1, 0.0, rl1){
+                return Err(RocheError::ParameterError("cphi3 and cphi4 must correspond to a primary radius between 0.0 and 1.0 that does not exceed its Roche lobe.".to_string()));
+            }
+            if !check_parameter_f64(r2, 0.0, rl2){
+                return Err(RocheError::ParameterError("cphi3 and cphi4 must correspond to a secondary radius between 0.0 and 1.0 that does not exceed its Roche lobe.".to_string()));
+            }
+        }
+        if !check_parameter_f64(self.t1.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("t1 must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.t2.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("t2 must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.velocity_scale.value, 0.0, C / 1000.0){
+            return Err(RocheError::ParameterError("velocity_scale must be positive and not exceed the speed of light.".to_string()));
+        }
+        if !check_parameter_f64(self.period.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("orbital period must be positive.".to_string()));
+        }
+        if !check_parameter_f64(self.absorb.value, 0.0, 1.0){
+            return Err(RocheError::ParameterError("absorb must be between 0.0 and 1.0.".to_string()));
+        }
+        if !check_parameter_f64(self.third.value, 0.0, f64::INFINITY){
+            return Err(RocheError::ParameterError("third must be positive".to_string()));
+        }
+        if self.wavelength == 0.0 {
+            return Err(RocheError::ParameterError("wavelength cannot be 0.0".to_string()));
+        } 
+        if self.tperiod == 0.0 {
+            return Err(RocheError::ParameterError("tperiod cannot be 0.0".to_string()));
+        }
+
+        if self.add_disc {
+            if !self.disc_defined(){
+               return Err(RocheError::ParameterError("Necessary disc parameters not defined.".to_string())); 
+            }
+            if !check_parameter_f64(self.r1.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("rdisc1 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.r2.value, -1.0, rl1){
+                return Err(RocheError::ParameterError("rdisc2 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_disc.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_disc must be positive.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_edge.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_edge must be positive.".to_string()));
+            }
+            if !check_parameter_f64(self.absorb_edge.value, 0.0, 1.0){
+                return Err(RocheError::ParameterError("absorb_edge must be between 0.0 and 1.0.".to_string()));
+            }
+        }
+
+        if self.add_spot {
+            if !self.bright_spot_defined(){
+                return Err(RocheError::ParameterError("Necessary bright spot parameters not defined.".to_string()));
+            }
+            if !check_parameter_f64(self.radius_spot.value, 0.0, 1.0){
+                return Err(RocheError::ParameterError("radius_spot must be between 0.0 and 1.0 and not exceed the Roche lobe of the primary star.".to_string()));
+            }
+            if !check_parameter_f64(self.temp_spot.value, 0.0, f64::INFINITY){
+                return Err(RocheError::ParameterError("temp_spot must be positive.".to_string()));
+            }
+        }
+        
+        Ok(())
+
+    }
+
     pub fn get_r1r2(&self) -> (f64, f64) {
         if self.use_radii {
             (self.r1.value, self.r2.value)
@@ -735,7 +978,7 @@ impl Model {
             (rr1, rr2)
         }
     }
-    
+
     pub fn get_ldc1(&self) -> LDC {
         LDC::with_params(
             self.ldc1_1.value,
@@ -917,7 +1160,7 @@ fn default_pparam() -> Pparam {
 }
 
 fn default_delta_phase() -> f64 {
-    1.0e-7_f64   
+    1.0e-7_f64
 }
 
 fn default_zero() -> u32 {
@@ -1033,6 +1276,9 @@ fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
     }
 }
 
+fn check_parameter_f64(value: f64, lower_limit: f64, upper_limit: f64) -> bool {
+    value >= lower_limit && value <= upper_limit
+}
 
 fn write_param_line(out: &mut String, name: &str, p: &Pparam) {
     out.push_str(&format!("{:<15} = {}\n", name, p));
@@ -1057,4 +1303,8 @@ fn write_ldc_line(out: &mut String, name: &str, v: LDCType) {
         LDCType::Poly => "Poly",
     };
     out.push_str(&format!("{:<15} = {}\n", name, s));
+}
+
+fn check_parameter_i32(value: i32, lower_limit: i32, upper_limit: i32) -> bool {
+    value >= lower_limit && value <= upper_limit
 }
