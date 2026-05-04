@@ -1,4 +1,5 @@
-.. |PyPI version badgen.net| image:: https://badgen.net/pypi/v/lroche/
+|PyPI version shield.io|
+.. |PyPI version shield.io| image:: https://badgen.net/pypi/v/lroche/
        :target: https://pypi.org/project/lroche
 
 
