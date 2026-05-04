@@ -844,7 +844,6 @@ impl Model {
         && self.t2.defined
         && self.ldc1_1.defined
         && self.ldc2_1.defined
-        && self.velocity_scale.defined
         && self.t0.defined
         && self.period.defined
         && self.gravity_dark1.defined
@@ -1303,8 +1302,4 @@ fn write_ldc_line(out: &mut String, name: &str, v: LDCType) {
         LDCType::Poly => "Poly",
     };
     out.push_str(&format!("{:<15} = {}\n", name, s));
-}
-
-fn check_parameter_i32(value: i32, lower_limit: i32, upper_limit: i32) -> bool {
-    value >= lower_limit && value <= upper_limit
 }

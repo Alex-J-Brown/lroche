@@ -199,6 +199,7 @@ pub fn comp_star1(
     q: f64,
     beam_factor1: f64,
     vscale: f64,
+    model_beaming1: bool,
     gint: &Ginterp,
     star1f: &Vec<Point>,
     star1c: &Vec<Point>,
@@ -250,7 +251,7 @@ pub fn comp_star1(
             if point.is_visible_phase_normed(phi_normed) {
                 mu = earth.dot(&point.direction);
                 if ldc1.see(mu) {
-                    if beam_factor1 != 0.0 {
+                    if model_beaming1 && beam_factor1 != 0.0 {
                         vx = -vfac * point.position.y;
                         vy = vfac * (point.position.x - x_cofm);
                         vr = -(earth.x * vx + earth.y * vy);
@@ -280,6 +281,7 @@ pub fn comp_star2(
     q: f64,
     beam_factor2: f64,
     vscale: f64,
+    model_beaming2: bool,
     glens1: bool,
     rlens1: f64,
     gint: &Ginterp,
@@ -371,7 +373,7 @@ pub fn comp_star2(
                         }
                     }
 
-                    if beam_factor2 != 0.0 {
+                    if model_beaming2 && beam_factor2 != 0.0  {
                         vx = -vfac * point.position.y;
                         vy = vfac * (point.position.x - x_cofm);
                         vr = -(earth.x * vx + earth.y * vy);

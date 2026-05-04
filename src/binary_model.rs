@@ -44,10 +44,10 @@ pub struct LightCurve {
     pub star1_contribution: f64,
 
     #[pyo3(get)]
-    pub logg1: f64,
+    pub logg1: Option<f64>,
 
     #[pyo3(get)]
-    pub logg2: f64,
+    pub logg2: Option<f64>,
 
     #[pyo3(get)]
     pub rva1: f64,
@@ -83,6 +83,8 @@ pub struct BinaryModel {
     bright_spot_grid: Vec<Point>,
     gint: Ginterp,
     rlens1: f64,
+    model_beaming1: bool,
+    model_beaming2: bool,
 
     #[pyo3(get)]
     pub model: Model,
@@ -104,6 +106,8 @@ impl BinaryModel {
             bright_spot_grid,
             gint,
             rlens1,
+            model_beaming1,
+            model_beaming2,
         ) = build_grids(&model)?;
 
         Ok(Self {
@@ -116,6 +120,8 @@ impl BinaryModel {
             bright_spot_grid,
             gint,
             rlens1,
+            model_beaming1,
+            model_beaming2,
             model,
         })
     }
@@ -132,6 +138,8 @@ impl BinaryModel {
             bright_spot_grid,
             gint,
             rlens1,
+            model_beaming1,
+            model_beaming2,
         ) = build_grids(&model)?;
 
         Ok(Self {
@@ -144,6 +152,8 @@ impl BinaryModel {
             bright_spot_grid,
             gint,
             rlens1,
+            model_beaming1,
+            model_beaming2,
             model,
         })
     }
@@ -163,6 +173,8 @@ impl BinaryModel {
                 self.bright_spot_grid,
                 self.gint,
                 self.rlens1,
+                self.model_beaming1,
+                self.model_beaming2
             ) = build_grids(&self.model)?;
         } else {
             self.reset_grid_continuum()?;
@@ -352,8 +364,14 @@ impl BinaryModel {
             (None, None)
         };
 
-        let logg1: f64 = comp_gravity1(&self.model, &self.star1_fine_grid)?;
-        let logg2: f64 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
+        let (logg1, logg2) = if self.model.velocity_scale.defined {
+            let logg1 = comp_gravity1(&self.model, &self.star1_fine_grid)?;
+            let logg2 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
+            (Some(logg1), Some(logg2))
+        } else {
+            (None, None)
+        };
+
         let rva1: f64 = if self.model.roche1 {
             comp_radius(&self.star1_coarse_grid, Star::Primary)
         } else {
@@ -390,6 +408,7 @@ impl BinaryModel {
             self.model.q.value,
             self.model.beam_factor1.value,
             self.model.velocity_scale.value,
+            self.model_beaming1,
             &self.gint,
             &self.star1_fine_grid,
             &self.star1_coarse_grid,
@@ -406,6 +425,7 @@ impl BinaryModel {
             self.model.q.value,
             self.model.beam_factor2.value,
             self.model.velocity_scale.value,
+            self.model_beaming2,
             self.model.glens1,
             self.rlens1,
             &self.gint,
@@ -461,6 +481,10 @@ impl BinaryModel {
         let ldc1: LDC = self.model.get_ldc1();
         let ldc2: LDC = self.model.get_ldc2();
 
+        self.model_beaming1 = self.model.beam_factor1.defined && self.model.velocity_scale.defined;
+        self.model_beaming2 = self.model.beam_factor2.defined && self.model.velocity_scale.defined;
+
+
         set_star_continuum(
             &self.model,
             &mut self.star1_fine_grid,
@@ -486,6 +510,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor1.value,
                 self.model.velocity_scale.value,
+                self.model_beaming1,
                 &self.gint,
                 &self.star1_fine_grid,
                 &self.star1_coarse_grid,
@@ -499,6 +524,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor1.value,
                 self.model.velocity_scale.value,
+                self.model_beaming1,
                 &self.gint,
                 &self.star1_fine_grid,
                 &self.star1_coarse_grid,
@@ -514,6 +540,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor1.value,
                 self.model.velocity_scale.value,
+                self.model_beaming1,
                 &self.gint,
                 &self.star1_fine_grid,
                 &self.star1_coarse_grid,
@@ -527,6 +554,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor1.value,
                 self.model.velocity_scale.value,
+                self.model_beaming1,
                 &self.gint,
                 &self.star1_fine_grid,
                 &self.star1_coarse_grid,
@@ -544,6 +572,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor2.value,
                 self.model.velocity_scale.value,
+                self.model_beaming2,
                 self.model.glens1,
                 self.rlens1,
                 &self.gint,
@@ -559,6 +588,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor2.value,
                 self.model.velocity_scale.value,
+                self.model_beaming2,
                 self.model.glens1,
                 self.rlens1,
                 &self.gint,
@@ -576,6 +606,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor2.value,
                 self.model.velocity_scale.value,
+                self.model_beaming2,
                 self.model.glens1,
                 self.rlens1,
                 &self.gint,
@@ -591,6 +622,7 @@ impl BinaryModel {
                 self.model.q.value,
                 self.model.beam_factor2.value,
                 self.model.velocity_scale.value,
+                self.model_beaming2,
                 self.model.glens1,
                 self.rlens1,
                 &self.gint,
@@ -648,6 +680,8 @@ fn build_grids(
         Vec<Point>,
         Ginterp,
         f64,
+        bool,
+        bool,
     ),
     RocheError,
 > {
@@ -710,6 +744,9 @@ fn build_grids(
     let ldc1: LDC = model.get_ldc1();
     let ldc2: LDC = model.get_ldc2();
 
+    let model_beaming1: bool = model.beam_factor1.defined && model.velocity_scale.defined;
+    let model_beaming2: bool = model.beam_factor2.defined && model.velocity_scale.defined;
+
     if model.nlat1c != model.nlat1f {
         let ff: f64 = comp_star1(
             model.iangle.value,
@@ -720,6 +757,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor1.value,
             model.velocity_scale.value,
+            model_beaming1,
             &gint,
             &star1_fine_grid,
             &star1_coarse_grid,
@@ -733,6 +771,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor1.value,
             model.velocity_scale.value,
+            model_beaming1,
             &gint,
             &star1_fine_grid,
             &star1_coarse_grid,
@@ -748,6 +787,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor1.value,
             model.velocity_scale.value,
+            model_beaming1,
             &gint,
             &star1_fine_grid,
             &star1_coarse_grid,
@@ -761,6 +801,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor1.value,
             model.velocity_scale.value,
+            model_beaming1,
             &gint,
             &star1_fine_grid,
             &star1_coarse_grid,
@@ -778,6 +819,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor2.value,
             model.velocity_scale.value,
+            model_beaming2,
             model.glens1,
             rlens1,
             &gint,
@@ -793,6 +835,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor2.value,
             model.velocity_scale.value,
+            model_beaming2,
             model.glens1,
             rlens1,
             &gint,
@@ -810,6 +853,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor2.value,
             model.velocity_scale.value,
+            model_beaming2,
             model.glens1,
             rlens1,
             &gint,
@@ -825,6 +869,7 @@ fn build_grids(
             model.q.value,
             model.beam_factor2.value,
             model.velocity_scale.value,
+            model_beaming2,
             model.glens1,
             rlens1,
             &gint,
@@ -940,6 +985,8 @@ fn build_grids(
         bright_spot_grid,
         gint,
         rlens1,
+        model_beaming1,
+        model_beaming2,
     ))
 }
 
