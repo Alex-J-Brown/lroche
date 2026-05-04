@@ -1,6 +1,6 @@
-|PyPI version badgen.net|
-.. |PyPI version badgen.net| image:: https://badgen.net/pypi/v/lroche/
-       :target: https://pypi.org/project/lroche
+|PyPI version shields.io|
+.. |PyPI version shields.io| image:: https://https://img.shields.io/pypi/v/lroche.svg
+   :target: https://pypi.org/project/lroche
 
 
 Python extension of the lroche routine from Tom Marsh's LCURVE (cpp-lcurve) translated into Rust
