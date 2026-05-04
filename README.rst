@@ -1,4 +1,4 @@
-|PyPI version badgen.io| image:: https://badgen.net/pypi/v/roche/
+.. |PyPI version badgen.io| image:: https://badgen.net/pypi/v/roche/
        :target: https://pypi.org/project/roche
 
 
