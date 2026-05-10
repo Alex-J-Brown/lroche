@@ -130,8 +130,8 @@ pub fn set_bright_spot_grid(model: &Model) -> Result<Vec<Point>, RocheError> {
                 - dist.powf(model.epow_spot.value))
             .exp());
 
-        let flux_tilt: f32 = (modified_brightness * (1.0 - model.cfrac_spot.value) * area) as f32;
-        let flux_parallel: f32 = (modified_brightness * model.cfrac_spot.value * area) as f32;
+        let flux_tilt: f32 = (modified_brightness * (1.0 - model.cfrac_spot.value) * (area as f32) as f64) as f32;
+        let flux_parallel: f32 = (modified_brightness * model.cfrac_spot.value * (area as f32) as f64) as f32;
         // the tilted strip
         bright_spot_grid[i] = Point {
             position: posn,

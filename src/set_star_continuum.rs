@@ -182,7 +182,7 @@ pub fn set_star_continuum(
         }
 
         // At this stage also add in a directly reflected part too
-        let mut flux: f32 = point.area * roche::planck(model.wavelength, temp) as f32;
+        let mut flux: f32 = ((point.area as f64) * roche::planck(model.wavelength, temp)) as f32;
 
         if model.mirror {
             flux += point.area
@@ -275,8 +275,7 @@ pub fn set_star_continuum(
         }
 
         // At this stage also add in a directly reflected part too
-        let mut flux: f32 = point.area * roche::planck(model.wavelength, temp) as f32;
-
+        let mut flux: f32 = ((point.area as f64) * roche::planck(model.wavelength, temp)) as f32;
         if model.mirror {
             flux += point.area
                 * (geom as f32)

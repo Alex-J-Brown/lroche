@@ -194,7 +194,7 @@ pub fn set_star_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Point>
     // Pole if npole is true). The angle theta is measured away from the North
     // pole, the angle phi is measured from the Y axis towards the Z axis.
 
-    let dtheta: f64 = PI / nlat as f64;
+    let dtheta: f64 = PI / (nlat as f64);
 
     if infill {
         add_faces(

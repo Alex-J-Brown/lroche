@@ -79,6 +79,6 @@ pub fn set_edge_continuum(
             // No irradiation
             temp = tedge;
         }
-        point.set_flux(point.area * roche::planck(wave, temp) as f32);
+        point.set_flux(((point.area as f64) * roche::planck(wave, temp)) as f32);
     }
 }
