@@ -42,7 +42,7 @@ Then calculate the model. Note that flux, flux_err, and weight are optional. If 
     ax.plot(time, lc.total)
     plt.show()
 
-Volume-averaged radii and flux-weighted log(g) calculated from the model can be accessed as attributes
+Volume-averaged radii and flux-weighted log(g) calculated from the model can be accessed as attributes (Note: The log(g) values will be `None` if the velocity_scale is not 'defined').
 
 .. code-block:: python
 
@@ -58,7 +58,7 @@ And if arrays of flux and flux_err were given then the chi-squared and log(proba
     print(lc.chi2)
     print(lc.log_prob)
 
-If flux and flux_err are not given then these will both be None.
+If flux and flux_err are not given then these will both be `None`.
 
 Once initialised, the model can be updated from a python dictionary and also accessed as a python dictionary.
 
@@ -67,7 +67,7 @@ Once initialised, the model can be updated from a python dictionary and also acc
     model.update({"iangle": 85.5, "t1": 20000.0})
     current_parameters = model.model.to_dict()
 
-If you are updating a parameter that was not previously 'defined', then defined will automatically  be set to 'true' when updated.
+If you are updating a parameter that was not previously 'defined', then 'defined' will automatically  be set to 'true' when updated.
 If you want to set it back to 'false' then the whole parameter details must be given e.g.
 
 .. code-block:: python
@@ -76,7 +76,7 @@ If you want to set it back to 'false' then the whole parameter details must be g
 
 Note that `model.update` checks if the grid needs to be rebuilt depending on what parameters are given. This is useful for fitting multiband data where the grid will remain the same for all bands but the fluxes and wavelengths will change, saving time by only updating the fluxes of the gridpoints.
 
-**Warning!** Currently there are no checks made on the models or updates to make sure these are valid. If an update is sent with an incorrect parameter name then it will not complain but also will not update the intended parameter.
+Checks are now performed to make sure parameters are within allowed ranges when updating from a python dictionary using `BinaryModel.update` or `model.update`. Validation checks are also carried out before the grid is built or updated but it's possible that some edge-cases may exist that don't get flagged so remain cautious about the parameters you supply.
 
 The LCURVE fitting routines, `levmarq`, and `simplex` have not been implemented in lroche, however the relatively simple python interface means that fitting algorithms from scipy can be used easily.
 

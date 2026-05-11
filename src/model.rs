@@ -8,7 +8,6 @@ use std::f64::consts::PI;
 use std::fs::{File, write};
 use std::io::{self, BufRead};
 use std::path::Path;
-
 use crate::ldc::{LDC, LDCType};
 use crate::pparam::{Pparam, PparamPartial};
 
@@ -64,7 +63,7 @@ pub enum Entry {
     Scalar(String),
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Copy, Deserialize)]
 #[serde(untagged)]
 pub enum PparamUpdate {
     Full(Pparam),
@@ -189,6 +188,104 @@ pub struct ModelUpdate {
 }
 
 impl ModelUpdate {
+
+    pub fn check_bounds(&self) -> Result<(), RocheError> {
+        const MAX_TEMP: f64 = 1.0e10;
+
+        if let Some(iangle) = self.iangle {
+            check_pparam_update_or_error(iangle, 0.0, 90.0, "iangle must be between 0.0 and 90.0.")?;
+        }
+
+        if let Some(q) = self.q {
+            check_pparam_update_or_error(q, f64::MIN_POSITIVE, f64::INFINITY, "q must be positive and non-zero.")?;
+        }
+
+        if let Some(r1) = self.r1 {
+            check_pparam_update_or_error(r1, f64::MIN_POSITIVE, 1.0, "r1 must be non-zero and between 0.0 and 1.0.")?;
+        }
+
+        if let Some(r2) = self.r2 {
+            if !check_pparam_update(r2, f64::MIN_POSITIVE, 1.0) && !check_pparam_update(r2, -1.0, -1.0) {
+                return Err(RocheError::ParameterError("r2 must be between 0.0 and 1.0 or set to -1.0 if Roche-filling.".to_string()));
+            }
+        }
+
+        if let Some(cphi3) = self.cphi3 {
+            check_pparam_update_or_error(cphi3, 0.0, 0.25, "cphi3 must be between 0.0 and 0.25.")?;
+        }
+
+        if let Some(cphi4) = self.cphi4 {
+            check_pparam_update_or_error(cphi4, 0.0, 0.25, "cphi4 must be between 0.0 and 0.25.")?;
+        }
+
+        if let Some(t1) = self.t1 {
+            check_pparam_update_or_error(t1, 0.0, MAX_TEMP, "t1 must be between 0.0 and 1.0e10.")?;
+        }
+
+        if let Some(t2) = self.t2 {
+            check_pparam_update_or_error(t2, 0.0, MAX_TEMP, "t2 must be between 0.0 and 1.0e10.")?;
+        }
+
+        if let Some(velocity_scale) = self.velocity_scale {
+            check_pparam_update_or_error(velocity_scale, f64::MIN_POSITIVE, C/1.0e3, "velocity_scale must be between 0.0 and the speed of light (km/s).")?;
+        }
+
+        if let Some(period) = self.period {
+            check_pparam_update_or_error(period, f64::MIN_POSITIVE, f64::INFINITY, "period must be positive and non-zero.")?;
+        }
+
+        if let Some(absorb) = self.absorb {
+            check_pparam_update_or_error(absorb, 0.0, 1.0, "absorb must be between 0.0 and 1.0.")?;
+        }
+
+        if let Some(third) = self.third {
+            check_pparam_update_or_error(third, 0.0, f64::INFINITY, "third must be positive.")?;
+        }
+
+        if let Some(rdisc1) = self.rdisc1 {
+            if !check_pparam_update(rdisc1, 0.0, 1.0) && !check_pparam_update(rdisc1, -1.0, -1.0) {
+                return Err(RocheError::ParameterError("rdisc1 must be between 0.0 and 1.0 or set to -1.0 if locked to radius of star 1.".to_string()));
+            }
+        }
+
+        if let Some(rdisc2) = self.rdisc2 {
+            if !check_pparam_update(rdisc2, 0.0, 1.0) && !check_pparam_update(rdisc2, -1.0, -1.0) {
+                return Err(RocheError::ParameterError("rdisc2 must be between 0.0 and 1.0 or set to -1.0 if locked to bright spot radius.".to_string()));
+            }
+        }
+
+        if let Some(temp_disc) = self.temp_disc {
+            check_pparam_update_or_error(temp_disc, 0.0, MAX_TEMP, "temp_disc must be between 0.0 and 1.0e10.")?;
+        }
+
+        if let Some(temp_edge) = self.temp_edge {
+            check_pparam_update_or_error(temp_edge, 0.0, MAX_TEMP, "temp_edge must be between 0.0 and 1.0e10.")?;
+        }
+
+        if let Some(absorb_edge) = self.absorb_edge {
+            check_pparam_update_or_error(absorb_edge, 0.0, 1.0, "absorb_edge must be between 0.0 and 1.0.")?;
+        }
+
+        if let Some(radius_spot) = self.radius_spot {
+            check_pparam_update_or_error(radius_spot, f64::MIN_POSITIVE, 1.0, "radius_spot must be positive, non-zero, and 1.0.")?;
+        }
+
+        if let Some(temp_spot) = self.temp_spot {
+            check_pparam_update_or_error(temp_spot, 0.0, MAX_TEMP, "temp_spot must be between 0.0 and 1.0e10.")?;
+        }
+
+        if let Some(tperiod) = self.tperiod {
+            check_parameter_f64_or_error(tperiod, f64::MIN_POSITIVE, f64::INFINITY, "tperiod must be positive and non-zero")?;
+        }
+        
+        if let Some(wavelength) = self.wavelength {
+            check_parameter_f64_or_error(wavelength, f64::MIN_POSITIVE, f64::INFINITY, "wavelength must be positive and non-zero")?;
+        }
+        
+        Ok(())
+    }
+
+
     pub fn grid_changed(&self) -> bool {
         self.q.is_some()
             || self.iangle.is_some()
@@ -711,12 +808,10 @@ impl Model {
         })
     }
 
-
     pub fn from_file(path: &str) -> Result<Self, String> {
         let map = load_entries(path)?;
         Self::from_map(map)
     }
-
 
     pub fn write(&self, path: &str) -> Result<(), String> {
         let mut out = String::new();
@@ -875,52 +970,50 @@ impl Model {
     }
 
     pub fn validate(&self) -> Result<(), RocheError> {
+        const MAX_TEMP: f64 = 1.0e10;
+
         if !self.basic_defined() {
-            return Err(RocheError::ParameterError("Necessary parameters not defined.".to_string()));
+            return Err(RocheError::ParameterError("Not all necessary parameters are defined.".to_string()));
         }
         check_parameter_f64_or_error(self.iangle.value, 0.0, 90.0, "iangle must be between 0.0 and 90.0.")?;
-        check_parameter_f64_or_error(self.q.value, 0.0, f64::INFINITY, "q must be positive.")?;
+        check_parameter_f64_or_error(self.q.value, f64::MIN_POSITIVE, f64::INFINITY, "q must be positive and non-zero.")?;
         let rl1: f64 = x_l1_1(self.q.value, self.spin1.value).unwrap();
         let rl2: f64 = 1.0 - x_l1_2(self.q.value, self.spin2.value).unwrap();
 
         if self.use_radii {
-            check_parameter_f64_or_error(self.r1.value, -1.0, rl1, "r1 must be between -1.0 and 1.0 and not exceed its Roche lobe.")?;
+            check_parameter_f64_or_error(self.r1.value, f64::MIN_POSITIVE, rl1, "r1 must be between 0.0 and 1.0 and not exceed its Roche lobe.")?;
             check_parameter_f64_or_error(self.r2.value, -1.0, rl2, "r2 must be between -1.0 and 1.0 and not exceed its Roche lobe.")?;
         } else {
             let (r1, r2) = self.get_r1r2();
             check_parameter_f64_or_error(r1, 0.0, rl1, "cphi3 and cphi4 must correspond to a primary radius between 0.0 and 1.0 that does not exceed its Roche lobe.")?;
             check_parameter_f64_or_error(r2, 0.0, rl2, "cphi3 and cphi4 must correspond to a secondary radius between 0.0 and 1.0 that does not exceed its Roche lobe.")?;
         }
-        check_parameter_f64_or_error(self.t1.value, 0.0, f64::INFINITY, "t1 must be positive.")?;
-        check_parameter_f64_or_error(self.t2.value, 0.0, f64::INFINITY, "t2 must be positive.")?;
-        check_parameter_f64_or_error(self.velocity_scale.value, 0.0, C / 1000.0, "velocity_scale must be positive and not exceed the speed of light.")?;
-        check_parameter_f64_or_error(self.period.value, 0.0, f64::INFINITY, "orbital period must be positive.")?;
+        check_parameter_f64_or_error(self.t1.value, 0.0, MAX_TEMP, "t1 must be positive.")?;
+        check_parameter_f64_or_error(self.t2.value, 0.0, MAX_TEMP, "t2 must be positive.")?;
+        check_parameter_f64_or_error(self.velocity_scale.value, f64::MIN_POSITIVE, C / 1000.0, "velocity_scale must be positive and not exceed the speed of light.")?;
+        check_parameter_f64_or_error(self.period.value, f64::MIN_POSITIVE, f64::INFINITY, "period must be positive and non-zero.")?;
         check_parameter_f64_or_error(self.absorb.value, 0.0, 1.0, "absorb must be between 0.0 and 1.0.")?;
         check_parameter_f64_or_error(self.third.value, 0.0, f64::INFINITY, "third must be positive")?;
-        if self.wavelength == 0.0 {
-            return Err(RocheError::ParameterError("wavelength cannot be 0.0".to_string()));
-        } 
-        if self.tperiod == 0.0 {
-            return Err(RocheError::ParameterError("tperiod cannot be 0.0".to_string()));
-        }
+        check_parameter_f64_or_error(self.wavelength, f64::MIN_POSITIVE, f64::INFINITY, "wavelength must be positive and non-zero.")?; 
+        check_parameter_f64_or_error(self.tperiod, f64::MIN_POSITIVE, f64::INFINITY, "tperiod must be positive and non-zero.")?;
 
         if self.add_disc {
             if !self.disc_defined(){
                return Err(RocheError::ParameterError("Necessary disc parameters not defined.".to_string())); 
             }
-            check_parameter_f64_or_error(self.r1.value, -1.0, rl1, "rdisc1 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
-            check_parameter_f64_or_error(self.r2.value, -1.0, rl1, "rdisc2 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
-            check_parameter_f64_or_error(self.temp_disc.value, 0.0, f64::INFINITY, "temp_disc must be positive.")?;
-            check_parameter_f64_or_error(self.temp_edge.value, 0.0, f64::INFINITY, "temp_edge must be positive.")?;
+            check_parameter_f64_or_error(self.rdisc1.value, -1.0, rl1, "rdisc1 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
+            check_parameter_f64_or_error(self.rdisc2.value, -1.0, rl1, "rdisc2 must be between -1.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
+            check_parameter_f64_or_error(self.temp_disc.value, 0.0, MAX_TEMP, "temp_disc must be positive.")?;
+            check_parameter_f64_or_error(self.temp_edge.value, 0.0, MAX_TEMP, "temp_edge must be positive.")?;
             check_parameter_f64_or_error(self.absorb_edge.value, 0.0, 1.0, "absorb_edge must be between 0.0 and 1.0.")?;
         }
 
         if self.add_spot {
             if !self.bright_spot_defined(){
-                return Err(RocheError::ParameterError("Necessary bright spot parameters not defined.".to_string()));
+                return Err(RocheError::ParameterError("Not all necessary bright spot parameters are defined.".to_string()));
             }
-            check_parameter_f64_or_error(self.radius_spot.value, 0.0, 1.0, "radius_spot must be between 0.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
-            check_parameter_f64_or_error(self.temp_spot.value, 0.0, f64::INFINITY, "temp_spot must be positive.")?;
+            check_parameter_f64_or_error(self.radius_spot.value, f64::MIN_POSITIVE, 1.0, "radius_spot must be between 0.0 and 1.0 and not exceed the Roche lobe of the primary star.")?;
+            check_parameter_f64_or_error(self.temp_spot.value, 0.0, MAX_TEMP, "temp_spot must be positive.")?;
         }
         
         Ok(())
@@ -962,7 +1055,8 @@ impl Model {
         )
     }
 
-    pub fn apply_update(&mut self, updated_model: ModelUpdate) {
+    pub fn apply_update(&mut self, updated_model: ModelUpdate) -> Result<(), RocheError> {
+        updated_model.check_bounds()?;
         apply_update!(self, updated_model, {
             q: pparam,
             iangle: pparam,
@@ -1075,8 +1169,8 @@ impl Model {
             add_spot: plain,
             nspot: plain,
             iscale: plain
-
         });
+    Ok(())
     }
 }
 
@@ -1102,7 +1196,7 @@ impl Model {
 
     fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
-        self.apply_update(upd);
+        self.apply_update(upd)?;
         Ok(())
     }
 
@@ -1235,6 +1329,28 @@ fn get_ldc(map: &HashMap<String, Entry>, k: &str) -> Result<LDCType, String> {
         },
         _ => Err(format!("missing LDCType: {}", k)),
     }
+}
+
+fn pparam_update_to_value(pparam_update: PparamUpdate) -> Option<f64> {
+    match pparam_update {
+        PparamUpdate::Full(pparam) => Some(pparam.value),
+        PparamUpdate::Partial(partial) => partial.value,
+        PparamUpdate::Value(value) => Some(value),
+    }
+}
+
+fn check_pparam_update(pparam_update: PparamUpdate, lower_limit: f64, upper_limit: f64) -> bool {
+    let Some(value) = pparam_update_to_value(pparam_update) else {
+        return true
+    };
+    check_parameter_f64(value, lower_limit, upper_limit)
+}
+
+fn check_pparam_update_or_error(pparam_update: PparamUpdate, lower_limit: f64, upper_limit: f64, error_msg: &str) -> Result<(), RocheError> {
+    if !check_pparam_update(pparam_update, lower_limit, upper_limit) {
+        return Err(RocheError::ParameterError(error_msg.to_string()));
+    }
+    Ok(())
 }
 
 fn check_parameter_f64(value: f64, lower_limit: f64, upper_limit: f64) -> bool {

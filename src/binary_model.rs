@@ -161,7 +161,7 @@ impl BinaryModel {
     pub fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
         let grid_changed = upd.grid_changed();
-        self.model.apply_update(upd);
+        self.model.apply_update(upd)?;
         if grid_changed {
             (
                 self.star1_coarse_grid,
