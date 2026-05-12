@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "lroche"
-version = "0.3.9"
+version = "0.3.10"
 requires-python = ">=3.8"
 
 [tool.maturin]

@@ -41,6 +41,9 @@ pub struct LightCurve {
     pub total: Py<PyArray1<f64>>,
 
     #[pyo3(get)]
+    pub scale_factor: f64,
+
+    #[pyo3(get)]
     pub star1_contribution: f64,
 
     #[pyo3(get)]
@@ -189,7 +192,7 @@ impl BinaryModel {
         flux=None,
         flux_err=None,
         weight=None,
-        autoscale=true
+        scale_factor=None,
     ))]
     pub fn compute_light_curve(
         &self,
@@ -200,7 +203,7 @@ impl BinaryModel {
         flux: Option<PyReadonlyArray1<f64>>,
         flux_err: Option<PyReadonlyArray1<f64>>,
         weight: Option<PyReadonlyArray1<f64>>,
-        autoscale: bool,
+        scale_factor: Option<f64>,
     ) -> PyResult<LightCurve> {
 
         let time: &[f64] = time.as_slice()?;
@@ -343,25 +346,31 @@ impl BinaryModel {
         for i in 0..time.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
+        
+        
+        let scale_factor = match (scale_factor, flux, flux_err) {
+            (Some(scale_factor), _, _) => scale_factor,
+            (None, Some(flux), Some(flux_err)) => rescale(flux, flux_err, weight, &total),
+            _ => 1.0,
+        };
+        // let scale_factor = rescale(flux.unwrap(), flux_err.unwrap(), weight, &total);
+        
+        for i in 0..time.len() {
+            star1[i] *= scale_factor;
+            star2[i] *= scale_factor;
+            disc[i] *= scale_factor;
+            disc_edge[i] *= scale_factor;
+            bright_spot[i] *= scale_factor;
+            total[i] *= scale_factor;
+        }
+        star1_contribution *= scale_factor;
 
-        let (chisq, log_prob) = if flux.is_some() && flux_err.is_some() && autoscale {
-            let scale_factor = rescale(flux.unwrap(), flux_err.unwrap(), weight, &total);
-            for i in 0..time.len() {
-                star1[i] *= scale_factor;
-                star2[i] *= scale_factor;
-                disc[i] *= scale_factor;
-                disc_edge[i] *= scale_factor;
-                bright_spot[i] *= scale_factor;
-                total[i] *= scale_factor;
+        let (chisq, log_prob) = match (flux, flux_err) {
+            (Some(flux), Some(flux_err)) => {
+                let (chisq, log_prob) = chisq_log_prob(flux, flux_err, weight, &total);
+                (Some(chisq), Some(log_prob))
             }
-
-            star1_contribution *= scale_factor;
-
-            let (chisq, log_prob) =
-                chisq_log_prob(flux.unwrap(), flux_err.unwrap(), weight, &total);
-            (Some(chisq), Some(log_prob))
-        } else {
-            (None, None)
+            _ => (None, None),
         };
 
         let (logg1, logg2) = if self.model.velocity_scale.defined {
@@ -386,6 +395,7 @@ impl BinaryModel {
             disc_edge: disc_edge.into_pyarray(py).unbind(),
             bright_spot: bright_spot.into_pyarray(py).unbind(),
             total: total.into_pyarray(py).unbind(),
+            scale_factor,
             star1_contribution,
             logg1,
             logg2,
@@ -1053,9 +1063,9 @@ pub fn chisq_log_prob(
         } else if let Some(weight) = weight {
             if weight[i] > 0.0 {
                 chisq_i = weight[i] * ((flux[i] - model_flux[i]) / flux_err[i]).powi(2);
-            } else {
-                chisq_i = ((flux[i] - model_flux[i]) / flux_err[i]).powi(2);
             }
+        } else {
+            chisq_i = ((flux[i] - model_flux[i]) / flux_err[i]).powi(2);
         }
 
         chisq_sum += chisq_i;
