@@ -27,7 +27,7 @@ load in your data in python and then convert each column to a contiguous array.
     n_div = np.ascontiguousarray(n_div)
 
 
-Then calculate the model. Note that flux, flux_err, weight, and scale_factor are optional arguments. If flux and flux_err are supplied and scale_factor is not then the returned light curve model will be scaled to minimise the :math:`\chi^{2}`. If weights are not given they will be assumed to be 1.
+Then calculate the model. Note that flux, flux_err, weight, and scale_factor are optional arguments. If flux and flux_err are supplied and scale_factor is not then the returned light curve model will be scaled to minimise the chi-squared. If weights are not given they will be assumed to be 1.
 In all cases the scale_factor that is used can be accessed as an attribute.
 
 .. code-block:: python
