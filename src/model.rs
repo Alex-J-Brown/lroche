@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
-use roche::{C, x_l1_1, x_l1_2, errors::RocheError};
+use roche::{constants::C, x_l1_1, x_l1_2, errors::RocheError};
 use serde::{Deserialize, Serialize};
 use serde_pyobject::from_pyobject;
 use std::collections::HashMap;

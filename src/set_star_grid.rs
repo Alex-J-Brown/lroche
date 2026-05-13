@@ -1,7 +1,7 @@
-use crate::constants;
 use crate::model::Model;
 use crate::numface::numface;
 use rayon::prelude::*;
+use roche::constants;
 use roche::errors::RocheError;
 use roche::{self, Etype, Point, RocheContext, Star, Vec3};
 use std::f64::consts::{FRAC_PI_2, PI, TAU};

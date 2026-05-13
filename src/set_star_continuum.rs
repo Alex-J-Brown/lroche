@@ -1,6 +1,5 @@
-use crate::constants::EFAC;
 use crate::model::Model;
-use roche::{self, Point, Vec3, errors::RocheError};
+use roche::{self, Point, Vec3, constants::EFAC, errors::RocheError};
 use std::f64::consts::PI;
 
 pub fn set_star_continuum(

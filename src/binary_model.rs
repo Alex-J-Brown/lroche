@@ -1,7 +1,6 @@
 use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::comp_radius::comp_radius;
-use crate::constants::{C, DAY};
 use crate::ginterp::Ginterp;
 use crate::ldc::LDC;
 use crate::model::{Entry, Model, ModelUpdate};
@@ -14,6 +13,7 @@ use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyDictMethods};
 use rayon::prelude::*;
+use roche::constants::{C, DAY};
 use roche::errors::RocheError;
 use roche::{self, Etype, Point, Star, disc_eclipse};
 use serde_pyobject::from_pyobject;

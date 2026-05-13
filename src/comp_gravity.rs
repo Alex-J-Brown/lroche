@@ -1,5 +1,5 @@
-use crate::constants::DAY;
 use crate::model::Model;
+use roche::constants::DAY;
 use roche::errors::RocheError;
 use roche::{Point, RocheContext, Star, Vec3};
 use std::f64::consts::TAU;

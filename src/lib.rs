@@ -6,7 +6,6 @@ pub mod binary_model;
 pub mod comp_gravity;
 pub mod comp_light;
 pub mod comp_radius;
-pub mod constants;
 pub mod ginterp;
 pub mod ldc;
 pub mod model;
