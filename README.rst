@@ -117,7 +117,7 @@ e.g.:
 
 .. code-block:: python
 
-    positions = np.array([point.flux for point in binary_model.star1_fine_grid])
+    positions = np.array([point.position for point in binary_model.star1_fine_grid])
 
 Note that lcurve defines the origin as the centre-of-mass of star1 and the centre-of-mass of star2 at the position, `Vec3(1, 0, 0)`.
 When defining grid-fluxes like this, the coarse and fine grids will be scaled to give the same total flux at the phases of the switching points as is the case with normally defined grids. However it's probably best to set the fine and coarse grids to the same number of points to prevent any possible issues here.
