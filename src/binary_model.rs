@@ -192,6 +192,28 @@ impl BinaryModel {
         Ok(())
     }
 
+    pub fn set_grid_fluxes(&mut self, grid: &str, fluxes: Vec<f32>) -> Result<(), RocheError> {
+        let chosen_grid = match grid {
+            "star1_fine" => &mut self.star1_fine_grid,
+            "star1_coarse" => &mut self.star1_coarse_grid,
+            "star2_fine" => &mut self.star2_fine_grid,
+            "star2_coarse" => &mut self.star2_coarse_grid,
+            _ => return Err(RocheError::ParameterError("Not a valid grid.".to_string())),
+        };
+
+        apply_fluxes(chosen_grid, fluxes)?;
+        self.gint = set_ginterp(
+            &self.model,
+            self.rlens1,
+            &self.star1_coarse_grid,
+            &self.star2_coarse_grid,
+            &self.star1_fine_grid,
+            &self.star2_fine_grid,
+        )?;
+
+        Ok(())
+    }
+
     #[pyo3(signature = (
         time,
         t_exp,
@@ -1079,4 +1101,16 @@ pub fn chisq_log_prob(
         log_prob += -0.5 * (chisq_i + (TAU * flux_err[i] * flux_err[i]).ln())
     }
     (chisq_sum, log_prob)
+}
+
+fn apply_fluxes(points: &mut Vec<Point>, fluxes: Vec<f32>) -> Result<(), RocheError> {
+    if points.len() != fluxes.len() {
+        return Err(RocheError::ParameterError(
+            "Selected grid and flux array have mismatched lengths.".to_string(),
+        ));
+    }
+    for (point, flux) in points.iter_mut().zip(fluxes) {
+        point.set_flux(flux);
+    }
+    Ok(())
 }
