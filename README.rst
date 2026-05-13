@@ -12,7 +12,7 @@ Python extension of the lroche routine from Tom Marsh's LCURVE (cpp-lcurve) tran
 
     import lroche
 
-    model = lroche.BinaryModel.from_file("WDdM.mod")
+    binary_model = lroche.BinaryModel.from_file("WDdM.mod")
 
 load in your data in python and then convert each column to a contiguous array.
 
@@ -32,7 +32,7 @@ In all cases the scale_factor that is used can be accessed as an attribute.
 
 .. code-block:: python
 
-    lc = model.compute_light_curve(time, t_exp, n_div, flux, flux_err, weight, scale_factor=100000.0)
+    lc = binary_model.compute_light_curve(time, t_exp, n_div, flux, flux_err, weight, scale_factor=100000.0)
 
     print(lc.scale_factor)
 
@@ -68,14 +68,14 @@ Once initialised, the model can be updated from a python dictionary and also acc
 .. code-block:: python
 
     model.update({"iangle": 85.5, "t1": 20000.0})
-    current_parameters = model.model.to_dict()
+    current_parameters = binary_model.model.to_dict()
 
 If you are updating a parameter that was not previously 'defined', then 'defined' will automatically  be set to 'true' when updated.
 If you want to set it back to 'false' then the whole parameter details must be given e.g.
 
 .. code-block:: python
 
-    model.update({"radius_spot": {"value": 0.326, "range": 0.0, "dstep": 0.0, "vary": False, "defined": False}})
+    binary_model.update({"radius_spot": {"value": 0.326, "range": 0.0, "dstep": 0.0, "vary": False, "defined": False}})
 
 Note that `model.update` checks if the grid needs to be rebuilt depending on what parameters are given. This is useful for fitting multiband data where the grid will remain the same for all bands but the fluxes and wavelengths will change, saving time by only updating the fluxes of the gridpoints.
 
@@ -104,3 +104,20 @@ The LCURVE fitting routines, `levmarq`, and `simplex` have not been implemented 
     popt, pcov = curve_fit(fit_function_curve_fit, xdata=time, ydata=flux, p0=[58674.006198], sigma=flux_err, method='lm', xtol=1e-12)
     print(f"t0 = {popt[0]} +- {np.sqrt(np.diag(pcov))[0]}")
     
+It is also possible to supply fluxes directly to the surface grids using a numpy array so that light curve models can be calculated for a given surface flux map. For this, the grids must first be initialised as normal before updating the flux of the grid points.
+
+.. code-block:: python
+
+    binary_model = lroche.BinaryModel.from_file("WDdM.mod")
+    star1f = binary_model.star1_fine_grid
+    binary_model.set_grid_fluxes("star1_fine", 1.0e-10*np.ones_like(star1f))
+
+To be able to match up a given surface flux map with the grid, you will need to access the position of each point on the grid.
+e.g.:
+
+.. code-block:: python
+
+    positions = np.array([point.flux for point in binary_model.star1_fine_grid])
+
+Note that lcurve defines the origin as the centre-of-mass of star1 and the centre-of-mass of star2 at the position, `Vec3(1, 0, 0)`.
+When defining grid-fluxes like this, the coarse and fine grids will be scaled to give the same total flux at the phases of the switching points as is the case with normally defined grids. However it's probably best to set the fine and coarse grids to the same number of points to prevent any possible issues here.
