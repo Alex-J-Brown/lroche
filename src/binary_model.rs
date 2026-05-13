@@ -192,12 +192,25 @@ impl BinaryModel {
         Ok(())
     }
 
+    ///
+    /// grid options are:
+    /// "star1_fine",
+    /// "star1_coarse",
+    /// "star2_fine",
+    /// "star2_coarse",
+    /// "disc",
+    /// "disc_edge",
+    /// "bright_spot"
+    /// 
     pub fn set_grid_fluxes(&mut self, grid: &str, fluxes: Vec<f32>) -> Result<(), RocheError> {
         let chosen_grid = match grid {
             "star1_fine" => &mut self.star1_fine_grid,
             "star1_coarse" => &mut self.star1_coarse_grid,
             "star2_fine" => &mut self.star2_fine_grid,
             "star2_coarse" => &mut self.star2_coarse_grid,
+            "disc" => &mut self.disc_grid,
+            "disc_edge" => &mut self.disc_edge_grid,
+            "bright_spot" => &mut self.bright_spot_grid,
             _ => return Err(RocheError::ParameterError("Not a valid grid.".to_string())),
         };
 
