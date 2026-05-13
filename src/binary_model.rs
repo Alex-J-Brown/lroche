@@ -509,16 +509,13 @@ impl BinaryModel {
 
     fn reset_grid_continuum(&mut self) -> Result<(), RocheError> {
         self.model.validate()?;
-        let (r1, mut r2) = self.model.get_r1r2();
+        let (_r1, mut r2) = self.model.get_r1r2();
         let rl2: f64 = 1.0 - roche::x_l1_2(self.model.q.value, self.model.spin2.value)?;
         if r2 < 0.0 {
             r2 = rl2;
         } else if r2 > rl2 {
             panic!("Secondary is larger than Roche Lobe.")
         }
-
-        let ldc1: LDC = self.model.get_ldc1();
-        let ldc2: LDC = self.model.get_ldc2();
 
         self.model_beaming1 = self.model.beam_factor1.defined && self.model.velocity_scale.defined;
         self.model_beaming2 = self.model.beam_factor2.defined && self.model.velocity_scale.defined;
@@ -535,141 +532,14 @@ impl BinaryModel {
             &mut self.star2_coarse_grid,
         )?;
 
-        let copy2: bool = (self.model.nlat2f == self.model.nlat2c)
-            && (!self.model.npole
-                || r1 >= r2
-                || (self.model.nlatfill == 0 && self.model.nlngfill == 0));
-        if self.model.nlat1c != self.model.nlat1f {
-            let ff: f64 = comp_star1(
-                self.model.iangle.value,
-                &ldc1,
-                0.9999999999 * self.model.phase1,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor1.value,
-                self.model.velocity_scale.value,
-                self.model_beaming1,
-                &self.gint,
-                &self.star1_fine_grid,
-                &self.star1_coarse_grid,
-            );
-            let fc: f64 = comp_star1(
-                self.model.iangle.value,
-                &ldc1,
-                1.0000000001 * self.model.phase1,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor1.value,
-                self.model.velocity_scale.value,
-                self.model_beaming1,
-                &self.gint,
-                &self.star1_fine_grid,
-                &self.star1_coarse_grid,
-            );
-            self.gint.scale11 = ff / fc;
-
-            let ff: f64 = comp_star1(
-                self.model.iangle.value,
-                &ldc1,
-                1.0 - 0.9999999999 * self.model.phase1,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor1.value,
-                self.model.velocity_scale.value,
-                self.model_beaming1,
-                &self.gint,
-                &self.star1_fine_grid,
-                &self.star1_coarse_grid,
-            );
-            let fc: f64 = comp_star1(
-                self.model.iangle.value,
-                &ldc1,
-                1.0 - 1.0000000001 * self.model.phase1,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor1.value,
-                self.model.velocity_scale.value,
-                self.model_beaming1,
-                &self.gint,
-                &self.star1_fine_grid,
-                &self.star1_coarse_grid,
-            );
-            self.gint.scale12 = ff / fc;
-        }
-
-        if !copy2 {
-            let ff: f64 = comp_star2(
-                self.model.iangle.value,
-                &ldc2,
-                1.0 - 1.0000000001 * self.model.phase2,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor2.value,
-                self.model.velocity_scale.value,
-                self.model_beaming2,
-                self.model.glens1,
-                self.rlens1,
-                &self.gint,
-                &self.star2_fine_grid,
-                &self.star2_coarse_grid,
-            );
-            let fc: f64 = comp_star2(
-                self.model.iangle.value,
-                &ldc2,
-                1.0 - 0.9999999999 * self.model.phase2,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor2.value,
-                self.model.velocity_scale.value,
-                self.model_beaming2,
-                self.model.glens1,
-                self.rlens1,
-                &self.gint,
-                &self.star2_fine_grid,
-                &self.star2_coarse_grid,
-            );
-            self.gint.scale21 = ff / fc;
-
-            let ff: f64 = comp_star2(
-                self.model.iangle.value,
-                &ldc2,
-                1.0000000001 * self.model.phase2,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor2.value,
-                self.model.velocity_scale.value,
-                self.model_beaming2,
-                self.model.glens1,
-                self.rlens1,
-                &self.gint,
-                &self.star2_fine_grid,
-                &self.star2_coarse_grid,
-            );
-            let fc: f64 = comp_star2(
-                self.model.iangle.value,
-                &ldc2,
-                0.9999999999 * self.model.phase2,
-                0.0,
-                1,
-                self.model.q.value,
-                self.model.beam_factor2.value,
-                self.model.velocity_scale.value,
-                self.model_beaming2,
-                self.model.glens1,
-                self.rlens1,
-                &self.gint,
-                &self.star2_fine_grid,
-                &self.star2_coarse_grid,
-            );
-            self.gint.scale22 = ff / fc;
-        }
+        self.gint = set_ginterp(
+            &self.model,
+            self.rlens1,
+            &self.star1_coarse_grid,
+            &self.star2_coarse_grid,
+            &self.star1_fine_grid,
+            &self.star2_fine_grid,
+        )?;
 
         if self.model.add_disc {
             let rdisc2 = if self.model.rdisc2.value > 0.0 {
@@ -763,15 +633,6 @@ fn build_grids(
     let mut disc_edge_grid: Vec<Point> = vec![];
     let mut bright_spot_grid: Vec<Point> = vec![];
 
-    let mut gint: Ginterp = Ginterp {
-        phase1: model.phase1,
-        phase2: model.phase2,
-        scale11: 1.0,
-        scale12: 1.0,
-        scale21: 1.0,
-        scale22: 1.0,
-    };
-
     let mut rlens1 = 0.0;
     if model.glens1 {
         let gm: f64 = (1000.0 * model.velocity_scale.value).powi(3) * model.tperiod * DAY / TAU;
@@ -780,143 +641,17 @@ fn build_grids(
         rlens1 = 4.0 * gm / (1.0 + model.q.value) / a / (C * C);
     }
 
-    let ldc1: LDC = model.get_ldc1();
-    let ldc2: LDC = model.get_ldc2();
-
     let model_beaming1: bool = model.beam_factor1.defined && model.velocity_scale.defined;
     let model_beaming2: bool = model.beam_factor2.defined && model.velocity_scale.defined;
 
-    if model.nlat1c != model.nlat1f {
-        let ff: f64 = comp_star1(
-            model.iangle.value,
-            &ldc1,
-            0.9999999999 * model.phase1,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor1.value,
-            model.velocity_scale.value,
-            model_beaming1,
-            &gint,
-            &star1_fine_grid,
-            &star1_coarse_grid,
-        );
-        let fc: f64 = comp_star1(
-            model.iangle.value,
-            &ldc1,
-            1.0000000001 * model.phase1,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor1.value,
-            model.velocity_scale.value,
-            model_beaming1,
-            &gint,
-            &star1_fine_grid,
-            &star1_coarse_grid,
-        );
-        gint.scale11 = ff / fc;
-
-        let ff: f64 = comp_star1(
-            model.iangle.value,
-            &ldc1,
-            1.0 - 0.9999999999 * model.phase1,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor1.value,
-            model.velocity_scale.value,
-            model_beaming1,
-            &gint,
-            &star1_fine_grid,
-            &star1_coarse_grid,
-        );
-        let fc: f64 = comp_star1(
-            model.iangle.value,
-            &ldc1,
-            1.0 - 1.0000000001 * model.phase1,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor1.value,
-            model.velocity_scale.value,
-            model_beaming1,
-            &gint,
-            &star1_fine_grid,
-            &star1_coarse_grid,
-        );
-        gint.scale12 = ff / fc;
-    }
-
-    if !copy2 {
-        let ff: f64 = comp_star2(
-            model.iangle.value,
-            &ldc2,
-            1.0 - 1.0000000001 * model.phase2,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor2.value,
-            model.velocity_scale.value,
-            model_beaming2,
-            model.glens1,
-            rlens1,
-            &gint,
-            &star2_fine_grid,
-            &star2_coarse_grid,
-        );
-        let fc: f64 = comp_star2(
-            model.iangle.value,
-            &ldc2,
-            1.0 - 0.9999999999 * model.phase2,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor2.value,
-            model.velocity_scale.value,
-            model_beaming2,
-            model.glens1,
-            rlens1,
-            &gint,
-            &star2_fine_grid,
-            &star2_coarse_grid,
-        );
-        gint.scale21 = ff / fc;
-
-        let ff: f64 = comp_star2(
-            model.iangle.value,
-            &ldc2,
-            1.0000000001 * model.phase2,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor2.value,
-            model.velocity_scale.value,
-            model_beaming2,
-            model.glens1,
-            rlens1,
-            &gint,
-            &star2_fine_grid,
-            &star2_coarse_grid,
-        );
-        let fc: f64 = comp_star2(
-            model.iangle.value,
-            &ldc2,
-            0.9999999999 * model.phase2,
-            0.0,
-            1,
-            model.q.value,
-            model.beam_factor2.value,
-            model.velocity_scale.value,
-            model_beaming2,
-            model.glens1,
-            rlens1,
-            &gint,
-            &star2_fine_grid,
-            &star2_coarse_grid,
-        );
-        gint.scale22 = ff / fc;
-    }
+    let gint = set_ginterp(
+        &model,
+        rlens1,
+        &star1_coarse_grid,
+        &star2_coarse_grid,
+        &star1_fine_grid,
+        &star2_fine_grid,
+    )?;
 
     if model.add_disc {
         disc_grid = set_disc_grid(model)?;
@@ -948,6 +683,7 @@ fn build_grids(
                     point.eclipse.push(eclipse_pair);
                 }
             }
+
             for point in &mut star1_coarse_grid {
                 eclipses = disc_eclipse(
                     model.iangle.value,
@@ -961,6 +697,7 @@ fn build_grids(
                     point.eclipse.push(eclipse_pair);
                 }
             }
+
             for point in &mut star2_fine_grid {
                 eclipses = disc_eclipse(
                     model.iangle.value,
@@ -974,6 +711,7 @@ fn build_grids(
                     point.eclipse.push(eclipse_pair);
                 }
             }
+
             for point in &mut star2_coarse_grid {
                 eclipses = disc_eclipse(
                     model.iangle.value,
@@ -1027,6 +765,174 @@ fn build_grids(
         model_beaming1,
         model_beaming2,
     ))
+}
+
+pub fn set_ginterp(
+    model: &Model,
+    rlens1: f64,
+    star1c: &Vec<Point>,
+    star2c: &Vec<Point>,
+    star1f: &Vec<Point>,
+    star2f: &Vec<Point>,
+) -> Result<Ginterp, RocheError> {
+    let (r1, mut r2) = model.get_r1r2();
+    let rl2: f64 = 1.0 - roche::x_l1_2(model.q.value, model.spin2.value)?;
+    if r2 < 0.0 {
+        r2 = rl2;
+    } else if r2 > rl2 {
+        panic!("Secondary is larger than Roche Lobe.")
+    }
+
+    let ldc1: LDC = model.get_ldc1();
+    let ldc2: LDC = model.get_ldc2();
+
+    let model_beaming1: bool = model.beam_factor1.defined && model.velocity_scale.defined;
+    let model_beaming2: bool = model.beam_factor2.defined && model.velocity_scale.defined;
+
+    let mut gint: Ginterp = Ginterp {
+        phase1: model.phase1,
+        phase2: model.phase2,
+        scale11: 1.0,
+        scale12: 1.0,
+        scale21: 1.0,
+        scale22: 1.0,
+    };
+
+    let copy2: bool = (model.nlat2f == model.nlat2c)
+        && (!model.npole || r1 >= r2 || (model.nlatfill == 0 && model.nlngfill == 0));
+
+    if model.nlat1c != model.nlat1f {
+        let ff: f64 = comp_star1(
+            model.iangle.value,
+            &ldc1,
+            0.9999999999 * model.phase1,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor1.value,
+            model.velocity_scale.value,
+            model_beaming1,
+            &gint,
+            star1f,
+            star1c,
+        );
+        let fc: f64 = comp_star1(
+            model.iangle.value,
+            &ldc1,
+            1.0000000001 * model.phase1,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor1.value,
+            model.velocity_scale.value,
+            model_beaming1,
+            &gint,
+            star1f,
+            star1c,
+        );
+        gint.scale11 = ff / fc;
+
+        let ff: f64 = comp_star1(
+            model.iangle.value,
+            &ldc1,
+            1.0 - 0.9999999999 * model.phase1,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor1.value,
+            model.velocity_scale.value,
+            model_beaming1,
+            &gint,
+            star1f,
+            star1c,
+        );
+        let fc: f64 = comp_star1(
+            model.iangle.value,
+            &ldc1,
+            1.0 - 1.0000000001 * model.phase1,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor1.value,
+            model.velocity_scale.value,
+            model_beaming1,
+            &gint,
+            star1f,
+            star1c,
+        );
+        gint.scale12 = ff / fc;
+    }
+
+    if !copy2 {
+        let ff: f64 = comp_star2(
+            model.iangle.value,
+            &ldc2,
+            1.0 - 1.0000000001 * model.phase2,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor2.value,
+            model.velocity_scale.value,
+            model_beaming2,
+            model.glens1,
+            rlens1,
+            &gint,
+            star2f,
+            star2c,
+        );
+        let fc: f64 = comp_star2(
+            model.iangle.value,
+            &ldc2,
+            1.0 - 0.9999999999 * model.phase2,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor2.value,
+            model.velocity_scale.value,
+            model_beaming2,
+            model.glens1,
+            rlens1,
+            &gint,
+            star2f,
+            star2c,
+        );
+        gint.scale21 = ff / fc;
+
+        let ff: f64 = comp_star2(
+            model.iangle.value,
+            &ldc2,
+            1.0000000001 * model.phase2,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor2.value,
+            model.velocity_scale.value,
+            model_beaming2,
+            model.glens1,
+            rlens1,
+            &gint,
+            star2f,
+            star2c,
+        );
+        let fc: f64 = comp_star2(
+            model.iangle.value,
+            &ldc2,
+            0.9999999999 * model.phase2,
+            0.0,
+            1,
+            model.q.value,
+            model.beam_factor2.value,
+            model.velocity_scale.value,
+            model_beaming2,
+            model.glens1,
+            rlens1,
+            &gint,
+            star2f,
+            star2c,
+        );
+        gint.scale22 = ff / fc;
+    }
+    Ok(gint)
 }
 
 pub fn map_from_pydict(dict: Bound<'_, PyDict>) -> PyResult<HashMap<String, Entry>> {
