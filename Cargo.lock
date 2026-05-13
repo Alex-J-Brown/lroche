@@ -287,9 +287,9 @@ dependencies = [
 
 [[package]]
 name = "rust-roche"
-version = "0.2.8"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c1e1915c7d925139ec2b9d8a88d609d649ba76fb5a9d56275c6dcd6036dd1b9"
+checksum = "a9f7204982ea5160713cb880febb29ecc024f4156927c54d0998f0d43d1542f1"
 dependencies = [
  "bulirsch",
  "ndarray",
