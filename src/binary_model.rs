@@ -77,12 +77,19 @@ pub struct LightCurve {
 /// 
 #[pyclass]
 pub struct BinaryModel {
+    #[pyo3(get)]
     star1_coarse_grid: Vec<Point>,
+    #[pyo3(get)]
     star2_coarse_grid: Vec<Point>,
+    #[pyo3(get)]
     star1_fine_grid: Vec<Point>,
+    #[pyo3(get)]
     star2_fine_grid: Vec<Point>,
+    #[pyo3(get)]
     disc_grid: Vec<Point>,
+    #[pyo3(get)]
     disc_edge_grid: Vec<Point>,
+    #[pyo3(get)]
     bright_spot_grid: Vec<Point>,
     gint: Ginterp,
     rlens1: f64,
