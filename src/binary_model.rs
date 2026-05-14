@@ -1,10 +1,13 @@
 use crate::comp_gravity::{comp_gravity1, comp_gravity2};
-use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
+use crate::comp_light::{comp_bright_spot, comp_cyclotron, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::comp_radius::comp_radius;
+use crate::cyclotron::Cyclotron;
 use crate::ginterp::Ginterp;
 use crate::ldc::LDC;
 use crate::model::{Entry, Model, ModelUpdate};
 use crate::set_bright_spot_grid::set_bright_spot_grid;
+use crate::set_cyclotron_continuum::set_cyclotron_continuum;
+use crate::set_cyclotron_grid::set_cyclotron_grid;
 use crate::set_disc_continuum::{set_disc_continuum, set_edge_continuum};
 use crate::set_disc_grid::{set_disc_edge_grid, set_disc_grid};
 use crate::set_star_continuum::set_star_continuum;
@@ -36,6 +39,9 @@ pub struct LightCurve {
 
     #[pyo3(get)]
     pub bright_spot: Py<PyArray1<f64>>,
+
+    #[pyo3(get)]
+    pub cyclotron: Py<PyArray1<f64>>,
 
     #[pyo3(get)]
     pub total: Py<PyArray1<f64>>,
@@ -91,6 +97,8 @@ pub struct BinaryModel {
     disc_edge_grid: Vec<Point>,
     #[pyo3(get)]
     bright_spot_grid: Vec<Point>,
+    #[pyo3(get)]
+    cyclotron_grid: Vec<Point>,
     gint: Ginterp,
     rlens1: f64,
     model_beaming1: bool,
@@ -114,6 +122,7 @@ impl BinaryModel {
             disc_grid,
             disc_edge_grid,
             bright_spot_grid,
+            cyclotron_grid,
             gint,
             rlens1,
             model_beaming1,
@@ -128,6 +137,7 @@ impl BinaryModel {
             disc_grid,
             disc_edge_grid,
             bright_spot_grid,
+            cyclotron_grid,
             gint,
             rlens1,
             model_beaming1,
@@ -146,6 +156,7 @@ impl BinaryModel {
             disc_grid,
             disc_edge_grid,
             bright_spot_grid,
+            cyclotron_grid,
             gint,
             rlens1,
             model_beaming1,
@@ -160,6 +171,7 @@ impl BinaryModel {
             disc_grid,
             disc_edge_grid,
             bright_spot_grid,
+            cyclotron_grid,
             gint,
             rlens1,
             model_beaming1,
@@ -181,6 +193,7 @@ impl BinaryModel {
                 self.disc_grid,
                 self.disc_edge_grid,
                 self.bright_spot_grid,
+                self.cyclotron_grid,
                 self.gint,
                 self.rlens1,
                 self.model_beaming1,
@@ -278,10 +291,12 @@ impl BinaryModel {
         let mut disc = vec![0.0; n];
         let mut disc_edge = vec![0.0; n];
         let mut bright_spot = vec![0.0; n];
+        let mut cyclotron_emission = vec![0.0; n];
         let mut total = vec![0.0; n];
 
         let ldc1: LDC = self.model.get_ldc1();
         let ldc2: LDC = self.model.get_ldc2();
+        let cyclo_emission: Cyclotron = self.model.get_cyclotron();
 
         let mut xmin: f64 = time[0];
         let mut xmax: f64 = time[0];
@@ -383,10 +398,28 @@ impl BinaryModel {
             *out = slfac * self.compute_bright_spot_flux(phase, expose, n_div[i] as i32);
         });
 
+        cyclotron_emission.par_iter_mut().enumerate().for_each(|(i, out)| {
+            let mut phase = (time[i] - self.model.t0.value) / self.model.period.value;
+            // small Newton-Raphson iteration
+            for _ in 0..4 {
+                phase -= (self.model.t0.value
+                    + phase * (self.model.period.value + self.model.pdot.value * phase)
+                    - time[i])
+                    / (self.model.period.value + 2.0 * self.model.pdot.value * phase);
+            }
+            // advance/retard by time offset between primary & secondary eclipse
+            phase += self.model.deltat.value / self.model.period.value / 2.0
+                * ((TAU * phase).cos() - 1.0);
+            let expose: f64 = t_exp[i] / self.model.period.value;
+            let frac: f64 = (time[i] - middle) / range;
+            let slfac: f64 = 1.0 + frac * (self.model.slope.value + frac * (self.model.quad.value + frac * self.model.cube.value));
+            *out = slfac * self.compute_cyclotron_flux(phase, &cyclo_emission, expose, n_div[i] as i32);
+        });
+
         let mut star1_contribution: f64 = self.compute_star1_flux(0.5, &ldc1, 0.0, 1);
 
         for i in 0..time.len() {
-            total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
+            total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i] + cyclotron_emission[i];
         }
         
         
@@ -403,6 +436,7 @@ impl BinaryModel {
             disc[i] *= scale_factor;
             disc_edge[i] *= scale_factor;
             bright_spot[i] *= scale_factor;
+            cyclotron_emission[i] *= scale_factor;
             total[i] *= scale_factor;
         }
         star1_contribution *= scale_factor;
@@ -436,6 +470,7 @@ impl BinaryModel {
             disc: disc.into_pyarray(py).unbind(),
             disc_edge: disc_edge.into_pyarray(py).unbind(),
             bright_spot: bright_spot.into_pyarray(py).unbind(),
+            cyclotron: cyclotron_emission.into_pyarray(py).unbind(),
             total: total.into_pyarray(py).unbind(),
             scale_factor,
             star1_contribution,
@@ -520,6 +555,17 @@ impl BinaryModel {
         )
     }
 
+    fn compute_cyclotron_flux(&self, phase: f64, cyclotron: &Cyclotron, expose: f64, n_div: i32) -> f64 {
+        comp_cyclotron(
+            self.model.iangle.value,
+            cyclotron,
+            phase,
+            expose,
+            n_div,
+            &self.cyclotron_grid,
+        )
+    }
+
     fn reset_grid_continuum(&mut self) -> Result<(), RocheError> {
         self.model.validate()?;
         let (_r1, mut r2) = self.model.get_r1r2();
@@ -585,6 +631,19 @@ impl BinaryModel {
         if self.model.add_spot {
             self.bright_spot_grid = set_bright_spot_grid(&self.model)?;
         }
+
+        let is_cyclotron_spot: bool = self.model.cyclotron_long.defined
+            && self.model.cyclotron_lat.defined
+            && self.model.cyclotron_fwhm.defined
+            && self.model.cyclotron_tcen.defined
+            && self.model.cyclotron_radfac.defined
+            && self.model.cyclotron_angwidth.defined
+            && self.model.cyclotron_halfangle.defined;
+
+        if is_cyclotron_spot {
+            set_cyclotron_continuum(&self.model, &mut self.cyclotron_grid)?;
+        }
+
         Ok(())
     }
 }
@@ -593,6 +652,7 @@ fn build_grids(
     model: &Model,
 ) -> Result<
     (
+        Vec<Point>,
         Vec<Point>,
         Vec<Point>,
         Vec<Point>,
@@ -645,6 +705,7 @@ fn build_grids(
     let mut disc_grid: Vec<Point> = vec![];
     let mut disc_edge_grid: Vec<Point> = vec![];
     let mut bright_spot_grid: Vec<Point> = vec![];
+    let mut cyclotron_grid: Vec<Point> = vec![];
 
     let mut rlens1 = 0.0;
     if model.glens1 {
@@ -764,6 +825,19 @@ fn build_grids(
     if model.add_spot {
         bright_spot_grid = set_bright_spot_grid(model)?;
     }
+    
+    let is_cyclotron_spot: bool = model.cyclotron_long.defined
+        && model.cyclotron_lat.defined
+        && model.cyclotron_fwhm.defined
+        && model.cyclotron_tcen.defined
+        && model.cyclotron_radfac.defined
+        && model.cyclotron_angwidth.defined
+        && model.cyclotron_halfangle.defined;
+
+    if is_cyclotron_spot {
+        cyclotron_grid = set_cyclotron_grid(model, true)?;
+        set_cyclotron_continuum(model, &mut cyclotron_grid)?;
+    }
 
     Ok((
         star1_coarse_grid,
@@ -773,6 +847,7 @@ fn build_grids(
         disc_grid,
         disc_edge_grid,
         bright_spot_grid,
+        cyclotron_grid,
         gint,
         rlens1,
         model_beaming1,
