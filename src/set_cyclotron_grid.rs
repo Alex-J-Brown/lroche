@@ -8,19 +8,13 @@ use std::f64::consts::PI;
 use std::panic;
 
 
-pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Point>, RocheError> {
+pub fn set_cyclotron_grid(model: &Model, fine: bool) -> Result<Vec<Point>, RocheError> {
     let (mut r1, mut r2) = model.get_r1r2();
     r1 *= model.cyclotron_radfac.value;
 
-    let eclipse: bool = match star {
-        Star::Primary => model.eclipse1,
-        Star::Secondary => model.eclipse2,
-    };
-    let nlat: u32 = match (star, fine) {
-        (Star::Primary, true) => model.nlat1f,
-        (Star::Primary, false) => model.nlat1c,
-        (Star::Secondary, true) => model.nlat2f,
-        (Star::Secondary, false) => model.nlat2c,
+    let nlat: u32 = match fine {
+        true => model.nlat1f,
+        false => model.nlat1c,
     };
 
 
@@ -39,12 +33,6 @@ pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Po
         r2 = rl2;
     } else if r2 > rl2 {
         panic!("set_star_grid: the secondary star is larger than its Roche lobe!");
-    }
-
-    if model.glens1 && star == Star::Secondary && model.roche1 && model.eclipse2 {
-        panic!(
-            "set_star_grid: cannot have gravitational lensing, eclipse and Roche lobe geometry at the same time"
-        );
     }
 
 
@@ -73,7 +61,7 @@ pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Po
     let gref: f64;
     // Compute reference gravity value, from the side of the star opposite from the L1 point
     // to ensure a non-zero value. Set to 1 if Roche distortion being ignored.
-    if star == Star::Primary && model.roche1 {
+    if model.roche1 {
         let dirn = Vec3::new(-1.0, 0.0, 0.0);
         (_posn, _dvec, _rad, gref) = roche_context1.face(dirn, rref1, pref1, acc)?;
     } else {
@@ -95,10 +83,7 @@ pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Po
         0.0,
         PI,
         dtheta,
-        0,
-        0,
         model.npole,
-        star,
         &roche_context1,
         &roche_context2,
         model.iangle.value,
@@ -107,7 +92,8 @@ pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Po
         rref1,
         model.roche1,
         model.roche2,
-        eclipse,
+        model.eclipse1,
+        model.eclipse2,
         gref,
         pref1,
         ffac1,
@@ -122,10 +108,7 @@ pub fn add_cyclotron_faces(
     tlo: f64,
     thi: f64,
     dtheta: f64,
-    nlatfill: u32,
-    nlngfill: u32,
     npole: bool,
-    star: Star,
     roche_context1: &RocheContext,
     roche_context2: &RocheContext,
     iangle: f64,
@@ -134,7 +117,8 @@ pub fn add_cyclotron_faces(
     rref1: f64,
     roche1: bool,
     roche2: bool,
-    eclipse: bool,
+    eclipse1: bool,
+    eclipse2: bool,
     gref: f64,
     pref1: f64,
     ffac1: f64,
@@ -151,8 +135,6 @@ pub fn add_cyclotron_faces(
     // Can afford to be pretty careful on the location of faces as it is a fast computation
     let acc: f64 = delta / 10.0;
 
-    let infill: bool = (nlatfill > 0) || (nlngfill > 0);
-
     let nlat: usize = ((thi - tlo) / dtheta).ceil() as usize;
     let nlat1: usize = 0;
     let nlat2: usize = 0;
@@ -161,7 +143,7 @@ pub fn add_cyclotron_faces(
         .into_par_iter()
         .map(|nt| {
             let g = band_geometry(
-                nt, tlo, thi, dtheta, nlat, nlat1, nlat2, infill, nlngfill, star,
+                nt, tlo, thi, dtheta, nlat, nlat1, nlat2, false, 0, Star::Primary,
             );
 
             let mut band = Vec::with_capacity(g.nphi);
@@ -217,7 +199,7 @@ pub fn add_cyclotron_faces(
 
                 let mut eclipses = Etype::new();
 
-                if eclipse {
+                if eclipse1 {
                     if roche2
                              && roche_context2
                                 .ingress_egress(
@@ -243,6 +225,8 @@ pub fn add_cyclotron_faces(
                                 )) {
                         eclipses.push((ingress, egress));
                     }
+                }
+                if eclipse2 {
                     if roche1
                              && roche_context1
                                 .ingress_egress(
