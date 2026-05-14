@@ -1,3 +1,4 @@
+use crate::cyclotron::Cyclotron;
 use crate::ginterp::Ginterp;
 use crate::ldc::LDC;
 use roche::constants::C;
@@ -546,6 +547,59 @@ pub fn comp_bright_spot(
         }
 
         sum += wgt * ssum
+    }
+
+    sum / (1.max(n_div - 1) as f64)
+}
+
+
+pub fn comp_cyclotron(
+    iangle: f64,
+    cyclotron: &Cyclotron,
+    phase: f64,
+    expose: f64,
+    n_div: i32,
+    cyclotron_grid: &Vec<Point>,
+) -> f64 {
+
+    let (sini, cosi) = iangle.to_radians().sin_cos();
+
+    let mut earth: Vec3;
+    let mut sum = 0.0;
+
+    let mut phi: f64;
+    let mut wgt: f64;
+
+    let mut ssum: f64;
+    let n_div_f: f64 = n_div as f64;
+
+    for div in 0..n_div {
+        if n_div == 1 {
+            phi = phase;
+            wgt = 1.0;
+        } else {
+            phi = phase + expose * (div as f64 - ((n_div_f - 1.0) / 2.0)) / (n_div_f - 1.0);
+
+            if div == 0 || div == n_div - 1 {
+                wgt = 0.5;
+            } else {
+                wgt = 1.0
+            }
+        }
+
+        earth = roche::set_earth(cosi, sini, phi);
+
+        ssum = 0.0;
+        let phi_normed: f64 = phi - phi.floor();
+        // star 1
+        for point in cyclotron_grid {
+            if point.is_visible_phase_normed(phi_normed) {
+                let theta = earth.dot(&point.direction).acos();
+                ssum += (point.flux as f64) * cyclotron.i(theta);
+            }
+        }
+        
+        sum += wgt * ssum;
     }
 
     sum / (1.max(n_div - 1) as f64)
