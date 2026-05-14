@@ -16,6 +16,17 @@ impl Cyclotron {
         }
     }
 
+    // Standard constructor
+    pub fn with_params(
+        half_apex_angle: f64,
+        angular_width: f64,
+    ) -> Self {
+        Self {
+            half_apex_angle,
+            angular_width,
+        }
+    }
+
 
     /// Computes I(mu)
     pub fn i(&self, theta: f64) -> f64 {

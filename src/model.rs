@@ -8,6 +8,7 @@ use std::f64::consts::PI;
 use std::fs::{File, write};
 use std::io::{self, BufRead};
 use std::path::Path;
+use crate::cyclotron::Cyclotron;
 use crate::ldc::{LDC, LDCType};
 use crate::pparam::{Pparam, PparamPartial};
 
@@ -339,7 +340,7 @@ impl ModelUpdate {
             || self.nrad.is_some()
             || self.opaque.is_some()
             || self.add_spot.is_some()
-            || self.nspot.is_some()
+            || self.cyclotron_radfac.is_some()
     }
 }
 
@@ -1095,6 +1096,13 @@ impl Model {
             self.ldc2_4.value,
             self.mucrit2,
             self.limb2,
+        )
+    }
+
+    pub fn get_cyclotron(&self) -> Cyclotron {
+        Cyclotron::with_params(
+            self.cyclotron_halfangle.value.to_radians(),
+            self.cyclotron_angwidth.value.to_radians(),
         )
     }
 
