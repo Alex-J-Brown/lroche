@@ -10,7 +10,7 @@ use std::panic;
 
 pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Point>, RocheError> {
     let (mut r1, mut r2) = model.get_r1r2();
-    r1 *= model.cyc_radius_factor.value;
+    r1 *= model.cyclotron_radfac.value;
 
     let eclipse: bool = match star {
         Star::Primary => model.eclipse1,
@@ -53,7 +53,6 @@ pub fn set_cycotron_grid(model: &Model, star: Star, fine: bool) -> Result<Vec<Po
     let (rref1, pref1) = roche_context1.ref_sphere(ffac1)?;
 
     let ffac2: f64 = r2 / rl2;
-    let (rref2, pref2) = roche_context2.ref_sphere(ffac2)?;
 
     // Compute latitude range over which extra points will be added. Only enabled
     // when setting the secondary grid and when the grid North pole is the genuine
