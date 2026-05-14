@@ -14,6 +14,7 @@ pub mod numface;
 pub mod pparam;
 pub mod set_bright_spot_grid;
 pub mod set_cyclotron_grid;
+pub mod set_cyclotron_continuum;
 pub mod set_disc_continuum;
 pub mod set_disc_grid;
 pub mod set_star_continuum;
