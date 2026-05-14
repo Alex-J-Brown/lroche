@@ -536,16 +536,16 @@ pub fn star_eclipse(
 }
 
 
-struct BandGeom {
-    sint: f64,
-    cost: f64,
-    phi1: f64,
-    phi2: f64,
-    nphi: usize,
-    nl: usize,
+pub struct BandGeom {
+    pub sint: f64,
+    pub cost: f64,
+    pub phi1: f64,
+    pub phi2: f64,
+    pub nphi: usize,
+    pub nl: usize,
 }
 
-fn band_geometry(
+pub fn band_geometry(
     nt: usize,
     tlo: f64,
     thi: f64,
