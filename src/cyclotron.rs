@@ -30,7 +30,7 @@ impl Cyclotron {
 
     /// Computes I(mu)
     pub fn i(&self, theta: f64) -> f64 {
-        let phi: f64 = (FRAC_PI_2 / self.angular_width) * (theta - self.half_apex_angle + FRAC_PI_4) - ((FRAC_PI_2 / self.angular_width) - 1.0) * FRAC_PI_4;
+        let phi: f64 = (FRAC_PI_2 / self.angular_width) * (theta - self.half_apex_angle) + FRAC_PI_4;
         if phi < 0.0 || phi > FRAC_PI_2 {
             return 0.0
         }
