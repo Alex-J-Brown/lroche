@@ -835,7 +835,7 @@ fn build_grids(
         && model.cyclotron_halfangle.defined;
 
     if is_cyclotron_spot {
-        cyclotron_grid = set_cyclotron_grid(model, true)?;
+        cyclotron_grid = set_cyclotron_grid(model)?;
         set_cyclotron_continuum(model, &mut cyclotron_grid, true)?;
     }
 

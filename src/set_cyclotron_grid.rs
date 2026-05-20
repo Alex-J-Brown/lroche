@@ -8,15 +8,11 @@ use std::f64::consts::PI;
 use std::panic;
 
 
-pub fn set_cyclotron_grid(model: &Model, fine: bool) -> Result<Vec<Point>, RocheError> {
+pub fn set_cyclotron_grid(model: &Model) -> Result<Vec<Point>, RocheError> {
     let (mut r1, mut r2) = model.get_r1r2();
     r1 *= model.cyclotron_radfac.value;
 
-    let nlat: u32 = match fine {
-        true => model.nlat1f,
-        false => model.nlat1c,
-    };
-
+    let nlat: u32 = model.cyclotron_nlat;
 
     let roche_context1 = RocheContext::new(model.q.value, Star::Primary, model.spin1.value)?;
     let roche_context2 = RocheContext::new(model.q.value, Star::Secondary, model.spin2.value)?;

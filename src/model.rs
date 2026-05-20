@@ -159,6 +159,7 @@ pub struct ModelUpdate {
     pub cyclotron_tcen: Option<PparamUpdate>,
     pub cyclotron_halfangle: Option<PparamUpdate>,
     pub cyclotron_angwidth: Option<PparamUpdate>,
+    pub cyclotron_nlat: Option<u32>,
     pub delta_phase: Option<f64>,
     pub nlat1f: Option<u32>,
     pub nlat2f: Option<u32>,
@@ -341,6 +342,7 @@ impl ModelUpdate {
             || self.opaque.is_some()
             || self.add_spot.is_some()
             || self.cyclotron_radfac.is_some()
+            || self.cyclotron_nlat.is_some()
     }
 }
 
@@ -517,6 +519,8 @@ pub struct Model {
     #[pyo3(get)]
     pub cyclotron_angwidth: Pparam,
     #[pyo3(get)]
+    pub cyclotron_nlat: u32,
+    #[pyo3(get)]
     pub delta_phase: f64,
     #[pyo3(get)]
     pub nlat1f: u32,
@@ -673,6 +677,7 @@ impl Default for Model {
             cyclotron_tcen: default_pparam(),
             cyclotron_halfangle: default_pparam(),
             cyclotron_angwidth: default_pparam(),
+            cyclotron_nlat: default_ten(),
             delta_phase: default_delta_phase(),
             nlat1f: default_ten(),
             nlat2f: default_ten(),
@@ -806,6 +811,7 @@ impl Model {
             cyclotron_tcen: get_p(&map, "cyclotron_tcen").unwrap_or_default(),
             cyclotron_halfangle: get_p(&map, "cyclotron_halfangle").unwrap_or_default(),
             cyclotron_angwidth: get_p(&map, "cyclotron_angwidth").unwrap_or_default(),
+            cyclotron_nlat: get_u32(&map, "cyclotron_nlat")?,
 
             // Scalars
             delta_phase: get_f64(&map, "delta_phase")?,
@@ -937,6 +943,7 @@ impl Model {
         write_param_line(&mut out, "cyclotron_tcen", &self.cyclotron_tcen);
         write_param_line(&mut out, "cyclotron_halfangle", &self.cyclotron_halfangle);
         write_param_line(&mut out, "cyclotron_angwidth", &self.cyclotron_angwidth);
+        write_u32_line(&mut out, "cyclotron_nlat", self.cyclotron_nlat);
         write_f64_line(&mut out, "delta_phase", self.delta_phase);
         write_u32_line(&mut out, "nlat1f", self.nlat1f);
         write_u32_line(&mut out, "nlat2f", self.nlat2f);
@@ -1193,6 +1200,7 @@ impl Model {
             cyclotron_tcen: pparam,
             cyclotron_halfangle: pparam,
             cyclotron_angwidth: pparam,
+            cyclotron_nlat: plain,
             delta_phase: plain,
             nlat1f: plain,
             nlat2f: plain,
