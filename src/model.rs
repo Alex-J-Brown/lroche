@@ -811,7 +811,7 @@ impl Model {
             cyclotron_tcen: get_p(&map, "cyclotron_tcen").unwrap_or_default(),
             cyclotron_halfangle: get_p(&map, "cyclotron_halfangle").unwrap_or_default(),
             cyclotron_angwidth: get_p(&map, "cyclotron_angwidth").unwrap_or_default(),
-            cyclotron_nlat: get_u32(&map, "cyclotron_nlat")?,
+            cyclotron_nlat: get_u32(&map, "cyclotron_nlat").unwrap_or_default(),
 
             // Scalars
             delta_phase: get_f64(&map, "delta_phase")?,
