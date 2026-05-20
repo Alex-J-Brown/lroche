@@ -641,7 +641,7 @@ impl BinaryModel {
             && self.model.cyclotron_halfangle.defined;
 
         if is_cyclotron_spot {
-            set_cyclotron_continuum(&self.model, &mut self.cyclotron_grid)?;
+            set_cyclotron_continuum(&self.model, &mut self.cyclotron_grid, true)?;
         }
 
         Ok(())
@@ -836,7 +836,7 @@ fn build_grids(
 
     if is_cyclotron_spot {
         cyclotron_grid = set_cyclotron_grid(model, true)?;
-        set_cyclotron_continuum(model, &mut cyclotron_grid)?;
+        set_cyclotron_continuum(model, &mut cyclotron_grid, true)?;
     }
 
     Ok((
