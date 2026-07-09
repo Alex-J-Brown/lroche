@@ -1,10 +1,10 @@
 [build-system]
-requires = ["maturin>=1.9.4,<2.0"]
+requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "lroche"
-version = "0.4.2"
+version = "0.4.1"
 requires-python = ">=3.8"
 
 [tool.maturin]
