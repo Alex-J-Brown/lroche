@@ -1,6 +1,6 @@
 [package]
 name = "lroche"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2024"
 
 [lib]
@@ -22,7 +22,7 @@ features = ["derive"]
 
 [dependencies.pyo3]
 version = "0.28.2"
-features = ["extension-module", "abi3-py38"]
+features = ["abi3-py38"]
 
 [profile.release]
 debug=true
