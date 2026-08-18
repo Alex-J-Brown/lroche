@@ -1,4 +1,4 @@
-import lroche
+import lcurve
 import numpy as np
 import pytest
 
@@ -8,7 +8,7 @@ def compare_cpp_rust_solution(
 ) -> None:
 
     # Load the mod file and the solution
-    binary_model = lroche.BinaryModel.from_file(modfile)
+    binary_model = lcurve.BinaryModel.from_file(modfile)
     cpp_solution = np.loadtxt(cpp_solution_file)
 
     # Prepare inputs and cpp flux measurements
