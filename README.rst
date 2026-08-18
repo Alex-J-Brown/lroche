@@ -126,7 +126,9 @@ When defining grid-fluxes like this, the coarse and fine grids will be scaled to
 Output convergence with C++
 ===========================
 To run the tests that check convergence with _legacy_ C++ code, run
+
 .. code-block:: bash
+
    pytest
 
 from the root of the repository.
