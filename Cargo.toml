@@ -1,10 +1,10 @@
 [package]
-name = "lroche"
-version = "0.4.3"
+name = "lcurve"
+version = "0.4.4"
 edition = "2024"
 
 [lib]
-name = "lroche"
+name = "lcurve"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
@@ -14,7 +14,7 @@ numpy = "0.28.0"
 rayon = "1.10"
 serde_json = "1.0.149"
 serde-pyobject = "0.8.0"
-rust-roche = "0.5.1"
+roche-rs = "0.5.3"
 
 [dependencies.serde]
 version = "1.0.228"
