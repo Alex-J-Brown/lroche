@@ -9,3 +9,6 @@ requires-python = ">=3.8"
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+
+[project.optional-dependencies]
+tests = ["pytest", "pytest-cov"]
