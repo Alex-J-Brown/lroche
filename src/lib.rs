@@ -18,7 +18,7 @@ pub mod set_star_continuum;
 pub mod set_star_grid;
 
 #[pymodule]
-fn lroche(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn lcurve(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<binary_model::BinaryModel>()?;
     m.add_class::<model::Model>()?;
     m.add_class::<pparam::Pparam>()?;
