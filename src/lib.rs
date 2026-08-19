@@ -23,5 +23,6 @@ fn lcurve(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<model::Model>()?;
     m.add_class::<pparam::Pparam>()?;
     m.add_class::<LDCType>()?;
+    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
