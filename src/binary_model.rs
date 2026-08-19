@@ -2,6 +2,7 @@ use crate::comp_gravity::{comp_gravity1, comp_gravity2};
 use crate::comp_light::{comp_bright_spot, comp_disc, comp_disc_edge, comp_star1, comp_star2};
 use crate::comp_radius::comp_radius;
 use crate::ginterp::Ginterp;
+use crate::grid::Grid;
 use crate::ldc::LDC;
 use crate::model::{Entry, Model, ModelUpdate};
 use crate::set_bright_spot_grid::set_bright_spot_grid;
@@ -78,19 +79,19 @@ pub struct LightCurve {
 #[pyclass]
 pub struct BinaryModel {
     #[pyo3(get)]
-    star1_coarse_grid: Vec<Point>,
+    star1_coarse_grid: Grid,
     #[pyo3(get)]
-    star2_coarse_grid: Vec<Point>,
+    star2_coarse_grid: Grid,
     #[pyo3(get)]
-    star1_fine_grid: Vec<Point>,
+    star1_fine_grid: Grid,
     #[pyo3(get)]
-    star2_fine_grid: Vec<Point>,
+    star2_fine_grid: Grid,
     #[pyo3(get)]
-    disc_grid: Vec<Point>,
+    disc_grid: Grid,
     #[pyo3(get)]
-    disc_edge_grid: Vec<Point>,
+    disc_edge_grid: Grid,
     #[pyo3(get)]
-    bright_spot_grid: Vec<Point>,
+    bright_spot_grid: Grid,
     gint: Ginterp,
     rlens1: f64,
     model_beaming1: bool,
@@ -202,30 +203,30 @@ impl BinaryModel {
     /// "disc_edge",
     /// "bright_spot"
     /// 
-    pub fn set_grid_fluxes(&mut self, grid: &str, fluxes: Vec<f32>) -> Result<(), RocheError> {
-        let chosen_grid = match grid {
-            "star1_fine" => &mut self.star1_fine_grid,
-            "star1_coarse" => &mut self.star1_coarse_grid,
-            "star2_fine" => &mut self.star2_fine_grid,
-            "star2_coarse" => &mut self.star2_coarse_grid,
-            "disc" => &mut self.disc_grid,
-            "disc_edge" => &mut self.disc_edge_grid,
-            "bright_spot" => &mut self.bright_spot_grid,
-            _ => return Err(RocheError::ParameterError("Not a valid grid.".to_string())),
-        };
+    // pub fn set_grid_fluxes(&mut self, grid: &str, fluxes: Vec<f32>) -> Result<(), RocheError> {
+    //     let chosen_grid = match grid {
+    //         "star1_fine" => &mut self.star1_fine_grid,
+    //         "star1_coarse" => &mut self.star1_coarse_grid,
+    //         "star2_fine" => &mut self.star2_fine_grid,
+    //         "star2_coarse" => &mut self.star2_coarse_grid,
+    //         "disc" => &mut self.disc_grid,
+    //         "disc_edge" => &mut self.disc_edge_grid,
+    //         "bright_spot" => &mut self.bright_spot_grid,
+    //         _ => return Err(RocheError::ParameterError("Not a valid grid.".to_string())),
+    //     };
 
-        apply_fluxes(chosen_grid, fluxes)?;
-        self.gint = set_ginterp(
-            &self.model,
-            self.rlens1,
-            &self.star1_coarse_grid,
-            &self.star2_coarse_grid,
-            &self.star1_fine_grid,
-            &self.star2_fine_grid,
-        )?;
+    //     apply_fluxes(chosen_grid, fluxes)?;
+    //     self.gint = set_ginterp(
+    //         &self.model,
+    //         self.rlens1,
+    //         &self.star1_coarse_grid,
+    //         &self.star2_coarse_grid,
+    //         &self.star1_fine_grid,
+    //         &self.star2_fine_grid,
+    //     )?;
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     #[pyo3(signature = (
         time,
@@ -364,19 +365,19 @@ impl BinaryModel {
         };
 
         let (logg1, logg2) = if self.model.velocity_scale.defined {
-            let logg1 = comp_gravity1(&self.model, &self.star1_fine_grid)?;
-            let logg2 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
+            let logg1 = comp_gravity1(&self.model, &self.star1_fine_grid.points)?;
+            let logg2 = comp_gravity2(&self.model, &self.star2_fine_grid.points)?;
             (Some(logg1), Some(logg2))
         } else {
             (None, None)
         };
 
         let rva1: f64 = if self.model.roche1 {
-            comp_radius(&self.star1_coarse_grid, Star::Primary)
+            comp_radius(&self.star1_coarse_grid.points, Star::Primary)
         } else {
             self.model.r1.value
         };
-        let rva2: f64 = comp_radius(&self.star2_coarse_grid, Star::Secondary);
+        let rva2: f64 = comp_radius(&self.star2_coarse_grid.points, Star::Secondary);
 
         Ok(LightCurve {
             star1: star1.into_pyarray(py).unbind(),
@@ -410,8 +411,8 @@ impl BinaryModel {
             self.model.velocity_scale.value,
             self.model_beaming1,
             &self.gint,
-            &self.star1_fine_grid,
-            &self.star1_coarse_grid,
+            &self.star1_fine_grid.points,
+            &self.star1_coarse_grid.points,
         )
     }
 
@@ -429,8 +430,8 @@ impl BinaryModel {
             self.model.glens1,
             self.rlens1,
             &self.gint,
-            &self.star2_fine_grid,
-            &self.star2_coarse_grid,
+            &self.star2_fine_grid.points,
+            &self.star2_coarse_grid.points,
         )
     }
 
@@ -442,7 +443,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.disc_grid,
+            &self.disc_grid.points,
         )
     }
 
@@ -454,7 +455,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.disc_edge_grid,
+            &self.disc_edge_grid.points,
         )
     }
 
@@ -464,7 +465,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.bright_spot_grid,
+            &self.bright_spot_grid.points,
         )
     }
 
@@ -484,22 +485,22 @@ impl BinaryModel {
 
         set_star_continuum(
             &self.model,
-            &mut self.star1_fine_grid,
-            &mut self.star2_fine_grid,
+            &mut self.star1_fine_grid.points,
+            &mut self.star2_fine_grid.points,
         )?;
         set_star_continuum(
             &self.model,
-            &mut self.star1_coarse_grid,
-            &mut self.star2_coarse_grid,
+            &mut self.star1_coarse_grid.points,
+            &mut self.star2_coarse_grid.points,
         )?;
 
         self.gint = set_ginterp(
             &self.model,
             self.rlens1,
-            &self.star1_coarse_grid,
-            &self.star2_coarse_grid,
-            &self.star1_fine_grid,
-            &self.star2_fine_grid,
+            &self.star1_coarse_grid.points,
+            &self.star2_coarse_grid.points,
+            &self.star1_fine_grid.points,
+            &self.star2_fine_grid.points,
         )?;
 
         if self.model.add_disc {
@@ -515,7 +516,7 @@ impl BinaryModel {
                 self.model.temp_disc.value,
                 self.model.texp_disc.value,
                 self.model.wavelength,
-                &mut self.disc_grid,
+                &mut self.disc_grid.points,
             );
 
             // Set the surface brightness of outer edge, accounting for
@@ -526,12 +527,12 @@ impl BinaryModel {
                 self.model.t2.value.abs(),
                 self.model.absorb_edge.value,
                 self.model.wavelength,
-                &mut self.disc_edge_grid,
+                &mut self.disc_edge_grid.points,
             );
         }
 
         if self.model.add_spot {
-            self.bright_spot_grid = set_bright_spot_grid(&self.model)?;
+            self.bright_spot_grid.points = set_bright_spot_grid(&self.model)?;
         }
         Ok(())
     }
@@ -541,13 +542,13 @@ fn build_grids(
     model: &Model,
 ) -> Result<
     (
-        Vec<Point>,
-        Vec<Point>,
-        Vec<Point>,
-        Vec<Point>,
-        Vec<Point>,
-        Vec<Point>,
-        Vec<Point>,
+        Grid,
+        Grid,
+        Grid,
+        Grid,
+        Grid,
+        Grid,
+        Grid,
         Ginterp,
         f64,
         bool,
@@ -714,13 +715,13 @@ fn build_grids(
     }
 
     Ok((
-        star1_coarse_grid,
-        star2_coarse_grid,
-        star1_fine_grid,
-        star2_fine_grid,
-        disc_grid,
-        disc_edge_grid,
-        bright_spot_grid,
+        Grid{points: star1_coarse_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: star2_coarse_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: star1_fine_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: star2_fine_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: disc_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: disc_edge_grid, q: model.q.value, iangle: model.iangle.value},
+        Grid{points: bright_spot_grid, q: model.q.value, iangle: model.iangle.value},
         gint,
         rlens1,
         model_beaming1,
@@ -982,14 +983,14 @@ pub fn chisq_log_prob(
     (chisq_sum, log_prob)
 }
 
-fn apply_fluxes(points: &mut Vec<Point>, fluxes: Vec<f32>) -> Result<(), RocheError> {
-    if points.len() != fluxes.len() {
-        return Err(RocheError::ParameterError(
-            "Selected grid and flux array have mismatched lengths.".to_string(),
-        ));
-    }
-    for (point, flux) in points.iter_mut().zip(fluxes) {
-        point.set_flux(flux);
-    }
-    Ok(())
-}
+// fn apply_fluxes(points: &mut Vec<Point>, fluxes: Vec<f32>) -> Result<(), RocheError> {
+//     if points.len() != fluxes.len() {
+//         return Err(RocheError::ParameterError(
+//             "Selected grid and flux array have mismatched lengths.".to_string(),
+//         ));
+//     }
+//     for (point, flux) in points.iter_mut().zip(fluxes) {
+//         point.set_flux(flux);
+//     }
+//     Ok(())
+// }
