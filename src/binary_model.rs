@@ -16,7 +16,7 @@ use pyo3::types::{PyDict, PyDictMethods};
 use rayon::prelude::*;
 use roche::constants::{C, DAY};
 use roche::errors::RocheError;
-use roche::{self, Etype, Point, Star, disc_eclipse};
+use roche::{self, Etype, Star, disc_eclipse};
 use serde_pyobject::from_pyobject;
 use std::collections::HashMap;
 use std::f64::consts::TAU;
@@ -365,8 +365,8 @@ impl BinaryModel {
         };
 
         let (logg1, logg2) = if self.model.velocity_scale.defined {
-            let logg1 = comp_gravity1(&self.model, &self.star1_fine_grid.points)?;
-            let logg2 = comp_gravity2(&self.model, &self.star2_fine_grid.points)?;
+            let logg1 = comp_gravity1(&self.model, &self.star1_fine_grid)?;
+            let logg2 = comp_gravity2(&self.model, &self.star2_fine_grid)?;
             (Some(logg1), Some(logg2))
         } else {
             (None, None)
@@ -411,8 +411,8 @@ impl BinaryModel {
             self.model.velocity_scale.value,
             self.model_beaming1,
             &self.gint,
-            &self.star1_fine_grid.points,
-            &self.star1_coarse_grid.points,
+            &self.star1_fine_grid,
+            &self.star1_coarse_grid,
         )
     }
 
@@ -430,8 +430,8 @@ impl BinaryModel {
             self.model.glens1,
             self.rlens1,
             &self.gint,
-            &self.star2_fine_grid.points,
-            &self.star2_coarse_grid.points,
+            &self.star2_fine_grid,
+            &self.star2_coarse_grid,
         )
     }
 
@@ -443,7 +443,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.disc_grid.points,
+            &self.disc_grid,
         )
     }
 
@@ -455,7 +455,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.disc_edge_grid.points,
+            &self.disc_edge_grid,
         )
     }
 
@@ -465,7 +465,7 @@ impl BinaryModel {
             phase,
             expose,
             n_div,
-            &self.bright_spot_grid.points,
+            &self.bright_spot_grid,
         )
     }
 
@@ -485,22 +485,22 @@ impl BinaryModel {
 
         set_star_continuum(
             &self.model,
-            &mut self.star1_fine_grid.points,
-            &mut self.star2_fine_grid.points,
+            &mut self.star1_fine_grid,
+            &mut self.star2_fine_grid,
         )?;
         set_star_continuum(
             &self.model,
-            &mut self.star1_coarse_grid.points,
-            &mut self.star2_coarse_grid.points,
+            &mut self.star1_coarse_grid,
+            &mut self.star2_coarse_grid,
         )?;
 
         self.gint = set_ginterp(
             &self.model,
             self.rlens1,
-            &self.star1_coarse_grid.points,
-            &self.star2_coarse_grid.points,
-            &self.star1_fine_grid.points,
-            &self.star2_fine_grid.points,
+            &self.star1_coarse_grid,
+            &self.star2_coarse_grid,
+            &self.star1_fine_grid,
+            &self.star2_fine_grid,
         )?;
 
         if self.model.add_disc {
@@ -516,7 +516,7 @@ impl BinaryModel {
                 self.model.temp_disc.value,
                 self.model.texp_disc.value,
                 self.model.wavelength,
-                &mut self.disc_grid.points,
+                &mut self.disc_grid,
             );
 
             // Set the surface brightness of outer edge, accounting for
@@ -527,12 +527,12 @@ impl BinaryModel {
                 self.model.t2.value.abs(),
                 self.model.absorb_edge.value,
                 self.model.wavelength,
-                &mut self.disc_edge_grid.points,
+                &mut self.disc_edge_grid,
             );
         }
 
         if self.model.add_spot {
-            self.bright_spot_grid.points = set_bright_spot_grid(&self.model)?;
+            self.bright_spot_grid = set_bright_spot_grid(&self.model)?;
         }
         Ok(())
     }
@@ -559,8 +559,8 @@ fn build_grids(
     model.validate()?;
     let mut star1_fine_grid = set_star_grid(model, Star::Primary, true)?;
     let mut star2_fine_grid = set_star_grid(model, Star::Secondary, true)?;
-    let mut star1_coarse_grid: Vec<Point>;
-    let mut star2_coarse_grid: Vec<Point>;
+    let mut star1_coarse_grid: Grid;
+    let mut star2_coarse_grid: Grid;
 
     let (r1, mut r2) = model.get_r1r2();
     let rl2: f64 = 1.0 - roche::x_l1_2(model.q.value, model.spin2.value)?;
@@ -591,9 +591,9 @@ fn build_grids(
         set_star_continuum(model, &mut star1_coarse_grid, &mut star2_coarse_grid)?;
     }
 
-    let mut disc_grid: Vec<Point> = vec![];
-    let mut disc_edge_grid: Vec<Point> = vec![];
-    let mut bright_spot_grid: Vec<Point> = vec![];
+    let mut disc_grid: Grid = Grid::new(vec![], model.q.value, model.iangle.value);
+    let mut disc_edge_grid: Grid = Grid::new(vec![], model.q.value, model.iangle.value);
+    let mut bright_spot_grid: Grid = Grid::new(vec![], model.q.value, model.iangle.value);
 
     let mut rlens1 = 0.0;
     if model.glens1 {
@@ -632,7 +632,7 @@ fn build_grids(
 
         let mut eclipses: Etype;
         if model.opaque {
-            for point in &mut star1_fine_grid {
+            for point in &mut star1_fine_grid.points {
                 eclipses = disc_eclipse(
                     model.iangle.value,
                     rdisc1,
@@ -646,7 +646,7 @@ fn build_grids(
                 }
             }
 
-            for point in &mut star1_coarse_grid {
+            for point in &mut star1_coarse_grid.points {
                 eclipses = disc_eclipse(
                     model.iangle.value,
                     rdisc1,
@@ -660,7 +660,7 @@ fn build_grids(
                 }
             }
 
-            for point in &mut star2_fine_grid {
+            for point in &mut star2_fine_grid.points {
                 eclipses = disc_eclipse(
                     model.iangle.value,
                     rdisc1,
@@ -674,7 +674,7 @@ fn build_grids(
                 }
             }
 
-            for point in &mut star2_coarse_grid {
+            for point in &mut star2_coarse_grid.points {
                 eclipses = disc_eclipse(
                     model.iangle.value,
                     rdisc1,
@@ -715,13 +715,13 @@ fn build_grids(
     }
 
     Ok((
-        Grid{points: star1_coarse_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: star2_coarse_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: star1_fine_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: star2_fine_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: disc_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: disc_edge_grid, q: model.q.value, iangle: model.iangle.value},
-        Grid{points: bright_spot_grid, q: model.q.value, iangle: model.iangle.value},
+        star1_coarse_grid,
+        star2_coarse_grid,
+        star1_fine_grid,
+        star2_fine_grid,
+        disc_grid,
+        disc_edge_grid,
+        bright_spot_grid,
         gint,
         rlens1,
         model_beaming1,
@@ -732,10 +732,10 @@ fn build_grids(
 pub fn set_ginterp(
     model: &Model,
     rlens1: f64,
-    star1c: &Vec<Point>,
-    star2c: &Vec<Point>,
-    star1f: &Vec<Point>,
-    star2f: &Vec<Point>,
+    star1c: &Grid,
+    star2c: &Grid,
+    star1f: &Grid,
+    star2f: &Grid,
 ) -> Result<Ginterp, RocheError> {
     let (r1, mut r2) = model.get_r1r2();
     let rl2: f64 = 1.0 - roche::x_l1_2(model.q.value, model.spin2.value)?;
