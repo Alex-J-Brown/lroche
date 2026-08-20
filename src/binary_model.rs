@@ -67,15 +67,15 @@ pub struct LightCurve {
 }
 
 ///
-/// BinaryModel is a class to contain the model for a close binary system.
-/// 
-/// An instance of BinaryModel can be initialised either from an lcurve .mod
-/// file using BinaryModel.from_file or from an instance of lroche.Model
-/// using BinaryModel.from_model.
-/// 
+/// :class:`BinaryModel` is a class to contain the model for a close binary system.
+///
+/// An instance of :class:`BinaryModel` can be initialised either from an `lcurve` .mod
+/// file using :meth:`BinaryModel.from_file` or from an instance of :class:`lcurve.Model`
+/// using :meth:`BinaryModel.from_model`.
+///
 /// Parameters can be updated by supplying a python dictionary of parameter
-/// key: value pairs to BinaryModel.update.
-/// 
+/// key: value pairs to :meth:`BinaryModel.update`.
+///
 #[pyclass]
 pub struct BinaryModel {
     #[pyo3(get)]
@@ -104,6 +104,13 @@ pub struct BinaryModel {
 #[pymethods]
 impl BinaryModel {
 
+    /// Create a :class:`BinaryModel` from an lcurve .mod file.
+    ///
+    /// Parameters:
+    ///   filename (str): the path to the .mod file
+    ///
+    /// Returns:
+    ///   BinaryModel: class instance
     #[staticmethod]
     pub fn from_file(filename: &str) -> PyResult<Self> {
         let model = Model::from_file(filename).map_err(pyo3::exceptions::PyIOError::new_err)?;
@@ -339,13 +346,13 @@ impl BinaryModel {
         for i in 0..time.len() {
             total[i] = star1[i] + star2[i] + disc[i] + disc_edge[i] + bright_spot[i];
         }
-        
+
         let scale_factor = match (scale_factor, flux, flux_err) {
             (Some(scale_factor), _, _) => scale_factor,
             (None, Some(flux), Some(flux_err)) => rescale(flux, flux_err, weight, &total),
             _ => 1.0,
         };
-        
+
         for i in 0..time.len() {
             star1[i] *= scale_factor;
             star2[i] *= scale_factor;
