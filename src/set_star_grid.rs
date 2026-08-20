@@ -491,7 +491,6 @@ pub fn add_faces(
         })
         .collect();
 
-    star_grid.points.clear();
 
     for band in bands {
         star_grid.points.extend(band);

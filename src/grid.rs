@@ -29,6 +29,58 @@ impl Grid {
 #[pymethods]
 impl Grid {
 
+    #[pyo3(signature = (phase=None))]
+    pub fn area(&self, phase: Option<f64>) -> Vec<f32> {
+        
+        let area: Vec<f32> = match phase {
+            Some(phase) => {
+                let mut area: Vec<f32> = vec![];
+                let earth = roche::set_earth_iangle(self.iangle, phase);
+                for point in &self.points {
+                    if earth.dot(&point.direction) > 0.0 && point.is_visible(phase) {
+                        area.push(point.area);
+                    }
+                }
+                area
+            },
+            None => {
+                let mut area: Vec<f32> = vec![];
+                for point in &self.points {
+                    area.push(point.area);
+                }
+                area
+            }
+        };
+
+        area
+    }
+
+    #[pyo3(signature = (phase=None))]
+    pub fn flux(&self, phase: Option<f64>) -> Vec<f32> {
+        
+        let flux: Vec<f32> = match phase {
+            Some(phase) => {
+                let mut flux: Vec<f32> = vec![];
+                let earth = roche::set_earth_iangle(self.iangle, phase);
+                for point in &self.points {
+                    if earth.dot(&point.direction) > 0.0 && point.is_visible(phase) {
+                        flux.push(point.flux);
+                    }
+                }
+                flux
+            },
+            None => {
+                let mut flux: Vec<f32> = vec![];
+                for point in &self.points {
+                    flux.push(point.flux);
+                }
+                flux
+            }
+        };
+
+        flux
+    }
+
     ///
     /// Projects the grid onto a 2D plane as seen at the model inclination
     /// at the supplied phase with the binary centre of mass as the origin.
