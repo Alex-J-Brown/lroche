@@ -1,12 +1,13 @@
 use pyo3::prelude::*;
 
-use crate::ldc::LDCType;
+use crate::{grid::Grid, ldc::LDCType};
 
 pub mod binary_model;
 pub mod comp_gravity;
 pub mod comp_light;
 pub mod comp_radius;
 pub mod ginterp;
+pub mod grid;
 pub mod ldc;
 pub mod model;
 pub mod numface;
@@ -23,6 +24,7 @@ fn lcurve(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<model::Model>()?;
     m.add_class::<pparam::Pparam>()?;
     m.add_class::<LDCType>()?;
+    m.add_class::<Grid>()?;
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())
 }
