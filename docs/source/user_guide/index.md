@@ -6,4 +6,5 @@ This guide provides an introduction to the `lcurve` package.
 :maxdepth: 2
 example.md
 notebook.ipynb
+physics.md
 ```
