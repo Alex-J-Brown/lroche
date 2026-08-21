@@ -66,11 +66,12 @@ pub struct LightCurve {
 }
 
 ///
-/// :class:`BinaryModel` is a class to contain the model for a close binary system.
+/// :class:`BinaryModel` is a class to contain the model and grids for a close
+/// binary system.
 ///
-/// An instance of :class:`BinaryModel` can be initialised either from an `lcurve` .mod
-/// file using :meth:`BinaryModel.from_file` or from an instance of :class:`lcurve.Model`
-/// using :meth:`BinaryModel.from_model`.
+/// An instance of :class:`BinaryModel` can be initialised either from an
+/// `lcurve` .mod file using :meth:`BinaryModel.from_file` or from an instance
+/// of :class:`lcurve.Model` using :meth:`BinaryModel.from_model`.
 ///
 /// Parameters can be updated by supplying a python dictionary of parameter
 /// key: value pairs to :meth:`BinaryModel.update`.
@@ -110,6 +111,7 @@ impl BinaryModel {
     ///
     /// Returns:
     ///   BinaryModel: class instance
+    /// 
     #[staticmethod]
     pub fn from_file(filename: &str) -> PyResult<Self> {
         let model = Model::from_file(filename).map_err(pyo3::exceptions::PyIOError::new_err)?;
@@ -175,6 +177,11 @@ impl BinaryModel {
         })
     }
 
+    ///
+    /// Method to update :class:`BinaryModel.Model` from a supplied Python dictionary and
+    /// rebuild grids if the geometry has changed, otherwise just updating the
+    /// continuum of the current grid.
+    /// 
     pub fn update(&mut self, _py: Python, dict: &Bound<'_, PyAny>) -> PyResult<()> {
         let upd: ModelUpdate = from_pyobject(dict.clone())?;
         let grid_changed = upd.grid_changed();
@@ -234,6 +241,29 @@ impl BinaryModel {
         Ok(())
     }
 
+    ///
+    /// Computes a model light curve for an array of times and exposure times
+    /// for the current parameters defined in :class:`BinaryModel.Model`.
+    /// 
+    /// Parameters:
+    /// 
+    /// * `time`: Array of times
+    /// * `t_exp`: Array of exposure times (same units as `time`)
+    /// * `n_div`: (Optional) number of exposure subdivisions to use to model\
+    ///             smearing from finite exposure times. 
+    /// * `flux`: (Optional) flux of data to enable automatic scaling of the model
+    ///             as well as for calculations of chi2 and log_prob.
+    /// * `flux_err`: (Optional) flux uncertainty of data to enable automatic
+    ///             scaling of the model as well as for calculations of chi2 and
+    ///             log_prob.
+    /// * `weight`: (Optional) weights for autoscaling, chi2, and log_prob
+    /// * `scale_factor`: (Optional) Scale factor to multiply light curve model
+    ///             by. Prevents autoscaling
+    /// 
+    /// Returns:
+    ///     
+    ///     :class:`LightCurve`
+    /// 
     #[pyo3(signature = (
         time,
         t_exp,
