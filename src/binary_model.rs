@@ -247,18 +247,23 @@ impl BinaryModel {
     /// 
     /// Parameters:
     /// 
-    /// * `time`: Array of times
-    /// * `t_exp`: Array of exposure times (same units as `time`)
-    /// * `n_div`: (Optional) number of exposure subdivisions to use to model\
-    ///             smearing from finite exposure times. 
-    /// * `flux`: (Optional) flux of data to enable automatic scaling of the model
-    ///             as well as for calculations of chi2 and log_prob.
-    /// * `flux_err`: (Optional) flux uncertainty of data to enable automatic
-    ///             scaling of the model as well as for calculations of chi2 and
-    ///             log_prob.
-    /// * `weight`: (Optional) weights for autoscaling, chi2, and log_prob
-    /// * `scale_factor`: (Optional) Scale factor to multiply light curve model
-    ///             by. Prevents autoscaling
+    /// `time`: (npoints, ) ndarray
+    ///     A 1-D array of times.
+    /// `t_exp`: (npoints, ) ndarray
+    ///     An array of exposure times (same units as `time`)
+    /// `n_div`: (npoints, ) ndarray, optional
+    ///     number of exposure subdivisions to use to model smearing from
+    ///     finite exposure times. 
+    /// `flux`: (npoints, ) ndarray, optional
+    ///     flux of data to enable automatic scaling of the model as well as for
+    ///     calculations of chi2 and log_prob.
+    /// `flux_err`: (npoints, ) ndarray, optional
+    ///     flux uncertainty of data to enable automatic scaling of the model
+    ///     as well as for calculations of chi2 and log_prob.
+    /// `weight`: (npoints, ) ndarray, optional
+    ///     weights for autoscaling, chi2, and log_prob
+    /// `scale_factor`: float, optional
+    ///     Scale factor to multiply light curve model by. Prevents autoscaling
     /// 
     /// Returns:
     ///     
